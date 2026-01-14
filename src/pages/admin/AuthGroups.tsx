@@ -11,6 +11,7 @@ interface AuthGroup {
     id: number;
     name: string;
     is_default: boolean;
+    rate_limit: number;
     created_at: string;
     updated_at: string;
 }
@@ -22,6 +23,7 @@ interface ListResponse {
 interface AuthGroupFormData {
     name: string;
     is_default: boolean;
+    rate_limit: string;
 }
 
 interface ConfirmDialogState {
@@ -56,8 +58,14 @@ function AuthGroupModal({ title, initialData, submitting, onClose, onSubmit }: A
             setError('Name is required.');
             return;
         }
+        const rateLimitRaw = formData.rate_limit.trim();
+        const rateLimit = rateLimitRaw === '' ? 0 : Number.parseInt(rateLimitRaw, 10);
+        if (Number.isNaN(rateLimit) || rateLimit < 0) {
+            setError('Rate limit must be a non-negative integer.');
+            return;
+        }
         setError('');
-        onSubmit({ name, is_default: formData.is_default });
+        onSubmit({ name, is_default: formData.is_default, rate_limit: rateLimit });
     };
 
     return (
@@ -105,6 +113,19 @@ function AuthGroupModal({ title, initialData, submitting, onClose, onSubmit }: A
                             />
                         </button>
                     </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                            {t('Rate limit')}
+                        </label>
+                        <input
+                            type="number"
+                            step="1"
+                            value={formData.rate_limit}
+                            onChange={(e) => setFormData({ ...formData, rate_limit: e.target.value })}
+                            placeholder="0"
+                            className={inputClassName}
+                        />
+                    </div>
                     {error && (
                         <div className="text-sm text-red-600 dark:text-red-400">
                             {t(error)}
@@ -136,11 +157,13 @@ function buildFormData(group?: AuthGroup): AuthGroupFormData {
         return {
             name: '',
             is_default: false,
+            rate_limit: '0',
         };
     }
     return {
         name: group.name,
         is_default: group.is_default,
+        rate_limit: String(group.rate_limit ?? 0),
     };
 }
 
@@ -314,6 +337,7 @@ export function AdminAuthGroups() {
                                     <th className="px-6 py-4">{t('ID')}</th>
                                     <th className="px-6 py-4">{t('Name')}</th>
                                     <th className="px-6 py-4">{t('Default')}</th>
+                                    <th className="px-6 py-4">{t('Rate limit')}</th>
                                     <th className="px-6 py-4">{t('Created At')}</th>
                                     <th className="px-6 py-4">{t('Actions')}</th>
                                 </tr>
@@ -322,14 +346,14 @@ export function AdminAuthGroups() {
                             {loading ? (
                                 [...Array(5)].map((_, i) => (
                                     <tr key={i}>
-                                        <td colSpan={5} className="px-6 py-4">
+                                        <td colSpan={6} className="px-6 py-4">
                                             <div className="animate-pulse h-4 bg-slate-200 dark:bg-border-dark rounded"></div>
                                         </td>
                                     </tr>
                                 ))
                             ) : paginatedGroups.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
+                                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
                                         {t('No auth groups found')}
                                     </td>
                                 </tr>
@@ -353,6 +377,9 @@ export function AdminAuthGroups() {
                                             }`}>
                                                 {group.is_default ? t('Yes') : t('No')}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono">
+                                            {group.rate_limit.toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono text-xs">
                                             {new Date(group.created_at).toLocaleDateString(locale)}

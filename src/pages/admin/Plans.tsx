@@ -21,6 +21,7 @@ interface Plan {
     sort_order: number;
     total_quota: number;
     daily_quota: number;
+    rate_limit: number;
     is_enabled: boolean;
     created_at: string;
     updated_at: string;
@@ -58,6 +59,7 @@ interface PlanFormData {
     sort_order: string;
     total_quota: string;
     daily_quota: string;
+    rate_limit: string;
     is_enabled: boolean;
 }
 
@@ -350,6 +352,7 @@ function buildFormData(plan?: Plan): PlanFormData {
             sort_order: '0',
             total_quota: '0',
             daily_quota: '0',
+            rate_limit: '0',
             is_enabled: true,
         };
     }
@@ -365,6 +368,7 @@ function buildFormData(plan?: Plan): PlanFormData {
         sort_order: String(plan.sort_order ?? 0),
         total_quota: String(plan.total_quota ?? 0),
         daily_quota: String(plan.daily_quota ?? 0),
+        rate_limit: String(plan.rate_limit ?? 0),
         is_enabled: plan.is_enabled ?? true,
     };
 }
@@ -484,6 +488,10 @@ function PlanModal({ title, initialData, submitting, canListModelMappings, onClo
         if (dailyQuota === null) {
             return;
         }
+        const rateLimit = parseNumber(formData.rate_limit, t('Rate limit'), true);
+        if (rateLimit === null) {
+            return;
+        }
 
         const payload = {
             name,
@@ -497,6 +505,7 @@ function PlanModal({ title, initialData, submitting, canListModelMappings, onClo
             sort_order: sortOrder,
             total_quota: totalQuota,
             daily_quota: dailyQuota,
+            rate_limit: rateLimit,
             is_enabled: formData.is_enabled,
         };
 
@@ -664,6 +673,19 @@ function PlanModal({ title, initialData, submitting, canListModelMappings, onClo
                                 step="0.0001"
                                 value={formData.daily_quota}
                                 onChange={(e) => setFormData({ ...formData, daily_quota: e.target.value })}
+                                placeholder="0"
+                                className={inputClassName}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                {t('Rate limit')}
+                            </label>
+                            <input
+                                type="number"
+                                step="1"
+                                value={formData.rate_limit}
+                                onChange={(e) => setFormData({ ...formData, rate_limit: e.target.value })}
                                 placeholder="0"
                                 className={inputClassName}
                             />
@@ -1000,6 +1022,7 @@ export function AdminPlans() {
                                     <th className="px-6 py-4">{t('Monthly Price')}</th>
                                     <th className="px-6 py-4">{t('Models')}</th>
                                     <th className="px-6 py-4">{t('Quota')}</th>
+                                    <th className="px-6 py-4">{t('Rate limit')}</th>
                                     <th className="px-6 py-4">{t('Enabled')}</th>
                                     <th className="px-6 py-4">{t('Updated At')}</th>
                                     <th className="px-6 py-4">{t('Actions')}</th>
@@ -1009,14 +1032,14 @@ export function AdminPlans() {
                                 {loading ? (
                                     [...Array(5)].map((_, i) => (
                                         <tr key={i}>
-                                            <td colSpan={8} className="px-6 py-4">
+                                            <td colSpan={9} className="px-6 py-4">
                                                 <div className="animate-pulse h-4 bg-slate-200 dark:bg-border-dark rounded"></div>
                                             </td>
                                         </tr>
                                     ))
                                 ) : paginatedPlans.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
+                                        <td colSpan={9} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
                                             {t('No plans found')}
                                         </td>
                                     </tr>
@@ -1054,6 +1077,9 @@ export function AdminPlans() {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono">
                                                     {plan.total_quota.toLocaleString()} / {plan.daily_quota.toLocaleString()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono">
+                                                    {plan.rate_limit.toLocaleString()}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${

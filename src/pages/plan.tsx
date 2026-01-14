@@ -19,6 +19,7 @@ interface PlanItem {
     sort_order: number;
     total_quota: number;
     daily_quota: number;
+    rate_limit: number;
     is_enabled: boolean;
     created_at: string;
     updated_at: string;
@@ -76,7 +77,11 @@ function buildPlanFeatures(
     const features = [plan.feature1, plan.feature2, plan.feature3, plan.feature4]
         .map((item) => item?.trim())
         .filter((item): item is string => Boolean(item));
+    const rateLimitValue = plan.rate_limit ?? 0;
     if (features.length > 0) {
+        if (rateLimitValue > 0) {
+            features.push(t('Rate limit (req/s): {{value}}', { value: rateLimitValue }));
+        }
         return features;
     }
 
@@ -86,6 +91,9 @@ function buildPlanFeatures(
     }
     if (plan.daily_quota > 0) {
         quotaFeatures.push(t('{{value}} Tokens / day', { value: formatQuota(plan.daily_quota) }));
+    }
+    if (rateLimitValue > 0) {
+        quotaFeatures.push(t('Rate limit (req/s): {{value}}', { value: rateLimitValue }));
     }
     return quotaFeatures;
 }

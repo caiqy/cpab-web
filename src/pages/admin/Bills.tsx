@@ -17,6 +17,7 @@ interface Bill {
     period_end: string;
     total_quota: number;
     daily_quota: number;
+    rate_limit: number;
     used_quota: number;
     left_quota: number;
     used_count: number;
@@ -273,91 +274,95 @@ export function AdminBills() {
                                     <th className="px-6 py-4">{t('Plan ID')}</th>
                                     <th className="px-6 py-4">{t('Period')}</th>
                                     <th className="px-6 py-4">{t('Amount')}</th>
-                                <th className="px-6 py-4">{t('Quota Used')}</th>
-                                <th className="px-6 py-4">{t('Status')}</th>
-                                <th className="px-6 py-4">{t('Enabled')}</th>
-                                <th className="px-6 py-4">{t('Created At')}</th>
-                                <th className="px-6 py-4">{t('Actions')}</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-border-dark">
-                            {loading ? (
-                                [...Array(5)].map((_, i) => (
-                                    <tr key={i}>
-                                        <td colSpan={10} className="px-6 py-4">
-                                            <div className="animate-pulse h-4 bg-slate-200 dark:bg-border-dark rounded"></div>
+                                    <th className="px-6 py-4">{t('Quota Used')}</th>
+                                    <th className="px-6 py-4">{t('Rate limit')}</th>
+                                    <th className="px-6 py-4">{t('Status')}</th>
+                                    <th className="px-6 py-4">{t('Enabled')}</th>
+                                    <th className="px-6 py-4">{t('Created At')}</th>
+                                    <th className="px-6 py-4">{t('Actions')}</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-border-dark">
+                                {loading ? (
+                                    [...Array(5)].map((_, i) => (
+                                        <tr key={i}>
+                                            <td colSpan={11} className="px-6 py-4">
+                                                <div className="animate-pulse h-4 bg-slate-200 dark:bg-border-dark rounded"></div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : paginatedBills.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={11} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
+                                            {t('No bills found')}
                                         </td>
                                     </tr>
-                                ))
-                            ) : paginatedBills.length === 0 ? (
-                                <tr>
-                                    <td colSpan={10} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
-                                        {t('No bills found')}
-                                    </td>
-                                </tr>
-                            ) : (
-                                paginatedBills.map((bill) => {
-                                    const statusInfo = STATUS_MAP[bill.status] || {
-                                        label: 'Unknown',
-                                        className: 'bg-gray-100 text-gray-800',
-                                    };
-                                    return (
-                                        <tr
-                                            key={bill.id}
-                                            className="hover:bg-gray-50 dark:hover:bg-background-dark transition-colors"
-                                        >
-                                            <td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white font-medium">
-                                                {bill.id}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary">
-                                                {bill.user_id}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary">
-                                                {bill.plan_id}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary">
-                                                {t(PERIOD_MAP[bill.period_type] || 'Unknown')}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white font-mono">
-                                                ${Number(bill.amount).toFixed(2)}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono">
-                                                {bill.used_quota.toLocaleString()} / {bill.total_quota.toLocaleString()}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusInfo.className}`}>
-                                                    {t(statusInfo.label)}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                                                    bill.is_enabled
-                                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20'
-                                                        : 'bg-gray-100 text-gray-800 dark:bg-gray-500/10 dark:text-gray-400 border-gray-200 dark:border-gray-500/20'
-                                                }`}>
-                                                    {bill.is_enabled ? t('Yes') : t('No')}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono text-xs">
-                                                {formatDate(bill.created_at)}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-1">
-                                                    {canUpdateBill && (
-                                                        <button
-                                                            onClick={() => window.location.href = `/admin/bills/${bill.id}/edit`}
-                                                            className="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-background-dark rounded-lg transition-colors"
-                                                            title={t('Edit')}
-                                                        >
-                                                            <Icon name="edit" size={18} />
-                                                        </button>
-                                                    )}
-                                                    {(bill.is_enabled ? canDisableBill : canEnableBill) && (
-                                                        <button
-                                                            onClick={() => handleToggleEnabled(bill)}
-                                                            className={`p-2 rounded-lg transition-colors ${
-                                                                bill.is_enabled
-                                                                    ? 'text-gray-400 hover:text-amber-500 hover:bg-gray-100 dark:hover:bg-background-dark'
+                                ) : (
+                                    paginatedBills.map((bill) => {
+                                        const statusInfo = STATUS_MAP[bill.status] || {
+                                            label: 'Unknown',
+                                            className: 'bg-gray-100 text-gray-800',
+                                        };
+                                        return (
+                                            <tr
+                                                key={bill.id}
+                                                className="hover:bg-gray-50 dark:hover:bg-background-dark transition-colors"
+                                            >
+                                                <td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white font-medium">
+                                                    {bill.id}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary">
+                                                    {bill.user_id}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary">
+                                                    {bill.plan_id}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary">
+                                                    {t(PERIOD_MAP[bill.period_type] || 'Unknown')}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white font-mono">
+                                                    ${Number(bill.amount).toFixed(2)}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono">
+                                                    {bill.used_quota.toLocaleString()} / {bill.total_quota.toLocaleString()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono">
+                                                    {bill.rate_limit.toLocaleString()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusInfo.className}`}>
+                                                        {t(statusInfo.label)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                                                        bill.is_enabled
+                                                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20'
+                                                            : 'bg-gray-100 text-gray-800 dark:bg-gray-500/10 dark:text-gray-400 border-gray-200 dark:border-gray-500/20'
+                                                    }`}>
+                                                        {bill.is_enabled ? t('Yes') : t('No')}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono text-xs">
+                                                    {formatDate(bill.created_at)}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="flex items-center gap-1">
+                                                        {canUpdateBill && (
+                                                            <button
+                                                                onClick={() => window.location.href = `/admin/bills/${bill.id}/edit`}
+                                                                className="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-background-dark rounded-lg transition-colors"
+                                                                title={t('Edit')}
+                                                            >
+                                                                <Icon name="edit" size={18} />
+                                                            </button>
+                                                        )}
+                                                        {(bill.is_enabled ? canDisableBill : canEnableBill) && (
+                                                            <button
+                                                                onClick={() => handleToggleEnabled(bill)}
+                                                                className={`p-2 rounded-lg transition-colors ${
+                                                                    bill.is_enabled
+                                                                        ? 'text-gray-400 hover:text-amber-500 hover:bg-gray-100 dark:hover:bg-background-dark'
                                                                     : 'text-gray-400 hover:text-emerald-500 hover:bg-gray-100 dark:hover:bg-background-dark'
                                                             }`}
                                                             title={bill.is_enabled ? t('Disable') : t('Enable')}

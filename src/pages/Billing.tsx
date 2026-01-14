@@ -9,6 +9,7 @@ interface Bill {
     id: number;
     amount: number;
     status: number;
+    rate_limit: number;
     created_at: string;
 }
 
@@ -22,6 +23,7 @@ interface ActiveBill {
     total_quota?: number;
     used_quota?: number;
     left_quota?: number;
+    rate_limit?: number;
 }
 
 interface PlanItem {
@@ -29,6 +31,7 @@ interface PlanItem {
     name: string;
     month_price: number;
     sort_order: number;
+    rate_limit: number;
 }
 
 interface PrepaidCard {
@@ -227,6 +230,7 @@ export function Billing() {
 
     const activePlanEntry = activePlanEntries[currentPlanIndex];
     const activePlan = activePlanEntry?.plan;
+    const activeRateLimit = activePlanEntry?.bill.rate_limit ?? activePlan?.rate_limit ?? 0;
     const hasMultiplePlans = activePlanEntries.length > 1;
     const stackedPlanBalance = useMemo(() => {
         if (!activeBills.length) {
@@ -441,6 +445,11 @@ export function Billing() {
                                                     ? t('${{price}} / month', { price: formatPrice(activePlanEntry.bill.amount) })
                                                     : '-'}
                                         </p>
+                                        {activeRateLimit > 0 && (
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                                {t('Rate limit (req/s): {{value}}', { value: activeRateLimit.toLocaleString() })}
+                                            </p>
+                                        )}
                                     </div>
                                 ) : (
                                     <div>
@@ -664,25 +673,26 @@ export function Billing() {
                                         <th className="px-6 py-4 font-medium">{t('Invoice ID')}</th>
                                         <th className="px-6 py-4 font-medium">{t('Date')}</th>
                                         <th className="px-6 py-4 font-medium">{t('Amount')}</th>
+                                        <th className="px-6 py-4 font-medium">{t('Rate limit')}</th>
                                         <th className="px-6 py-4 font-medium">{t('Status')}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-border-dark text-slate-700 dark:text-slate-300">
                                     {billLoading ? (
                                         <tr>
-                                            <td colSpan={4} className="px-6 py-4 text-center">
+                                            <td colSpan={5} className="px-6 py-4 text-center">
                                                 {t('Loading...')}
                                             </td>
                                         </tr>
                                     ) : billError ? (
                                         <tr>
-                                            <td colSpan={4} className="px-6 py-4 text-center text-red-500">
+                                            <td colSpan={5} className="px-6 py-4 text-center text-red-500">
                                                 {billError}
                                             </td>
                                         </tr>
                                     ) : recentBills.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">
+                                            <td colSpan={5} className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">
                                                 {t('No transactions yet.')}
                                             </td>
                                         </tr>
@@ -702,6 +712,9 @@ export function Billing() {
                                                     </td>
                                                     <td className="px-6 py-4">{date}</td>
                                                     <td className="px-6 py-4">${bill.amount.toFixed(2)}</td>
+                                                    <td className="px-6 py-4">
+                                                        {bill.rate_limit > 0 ? bill.rate_limit.toLocaleString() : ''}
+                                                    </td>
                                                     <td className="px-6 py-4">
                                                         <span
                                                             className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium capitalize ${getStatusStyle(status)}`}
@@ -759,25 +772,26 @@ export function Billing() {
                                                 <th className="px-6 py-4 font-medium">{t('Invoice ID')}</th>
                                                 <th className="px-6 py-4 font-medium">{t('Date')}</th>
                                                 <th className="px-6 py-4 font-medium">{t('Amount')}</th>
+                                                <th className="px-6 py-4 font-medium">{t('Rate limit')}</th>
                                                 <th className="px-6 py-4 font-medium">{t('Status')}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-border-dark text-slate-700 dark:text-slate-300">
                                             {billLoading ? (
                                                 <tr>
-                                                    <td colSpan={4} className="px-6 py-4 text-center">
+                                                    <td colSpan={5} className="px-6 py-4 text-center">
                                                         {t('Loading...')}
                                                     </td>
                                                 </tr>
                                             ) : billError ? (
                                                 <tr>
-                                                    <td colSpan={4} className="px-6 py-4 text-center text-red-500">
+                                                    <td colSpan={5} className="px-6 py-4 text-center text-red-500">
                                                         {billError}
                                                     </td>
                                                 </tr>
                                             ) : paginatedBills.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={4} className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">
+                                                    <td colSpan={5} className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">
                                                         {t('No transactions yet.')}
                                                     </td>
                                                 </tr>
@@ -797,6 +811,9 @@ export function Billing() {
                                                             </td>
                                                             <td className="px-6 py-4">{date}</td>
                                                             <td className="px-6 py-4">${bill.amount.toFixed(2)}</td>
+                                                            <td className="px-6 py-4">
+                                                                {bill.rate_limit > 0 ? bill.rate_limit.toLocaleString() : ''}
+                                                            </td>
                                                             <td className="px-6 py-4">
                                                                 <span
                                                                     className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium capitalize ${getStatusStyle(status)}`}

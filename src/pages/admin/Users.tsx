@@ -13,6 +13,7 @@ interface User {
     email: string;
     user_group_id: number | null;
     daily_max_usage: number;
+    rate_limit: number;
     active: boolean;
     disabled: boolean;
     created_at: string;
@@ -29,6 +30,7 @@ interface EditFormData {
     password: string;
     user_group_id: string;
     daily_max_usage: string;
+    rate_limit: string;
     disabled: boolean;
 }
 
@@ -153,6 +155,7 @@ function EditUserModal({
         password: '',
         user_group_id: user.user_group_id ? user.user_group_id.toString() : '',
         daily_max_usage: user.daily_max_usage.toString(),
+        rate_limit: user.rate_limit.toString(),
         disabled: user.disabled,
     });
     const [loading, setLoading] = useState(false);
@@ -196,6 +199,7 @@ function EditUserModal({
                 username: formData.username.trim(),
                 email: formData.email.trim(),
                 daily_max_usage: parseFloat(formData.daily_max_usage) || 0,
+                rate_limit: Number.parseInt(formData.rate_limit, 10) || 0,
                 disabled: formData.disabled,
             };
             if (canAssignGroup) {
@@ -219,6 +223,7 @@ function EditUserModal({
                 username: updateData.username as string,
                 email: updateData.email as string,
                 daily_max_usage: updateData.daily_max_usage as number,
+                rate_limit: updateData.rate_limit as number,
                 disabled: updateData.disabled as boolean,
                 user_group_id: formData.user_group_id ? Number(formData.user_group_id) : null,
             });
@@ -383,6 +388,20 @@ function EditUserModal({
                                 onChange={handleInputChange}
                                 disabled={loading}
                                 step="0.01"
+                                className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                {t('Rate limit')}
+                            </label>
+                            <input
+                                type="number"
+                                name="rate_limit"
+                                value={formData.rate_limit}
+                                onChange={handleInputChange}
+                                disabled={loading}
+                                step="1"
                                 className="w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-background-dark text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
                             />
                         </div>
@@ -687,6 +706,7 @@ export function AdminUsers() {
                                     <th className="px-6 py-4">{t('Username')}</th>
                                     <th className="px-6 py-4">{t('Email')}</th>
                                     <th className="px-6 py-4">{t('Daily Max Usage')}</th>
+                                    <th className="px-6 py-4">{t('Rate limit')}</th>
                                     <th className="px-6 py-4">{t('User Group')}</th>
                                     <th className="px-6 py-4">{t('Status')}</th>
                                     <th className="px-6 py-4">{t('Created At')}</th>
@@ -697,14 +717,14 @@ export function AdminUsers() {
                             {loading ? (
                                 [...Array(5)].map((_, i) => (
                                     <tr key={i}>
-                                        <td colSpan={8} className="px-6 py-4">
+                                        <td colSpan={9} className="px-6 py-4">
                                             <div className="animate-pulse h-4 bg-slate-200 dark:bg-border-dark rounded"></div>
                                         </td>
                                     </tr>
                                 ))
                             ) : paginatedUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
+                                    <td colSpan={9} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
                                         {searchQuery ? t('No users found') : t('No users yet')}
                                     </td>
                                 </tr>
@@ -725,6 +745,9 @@ export function AdminUsers() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono">
                                             ${user.daily_max_usage.toFixed(2)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono">
+                                            {user.rate_limit.toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary">
                                             {user.user_group_id

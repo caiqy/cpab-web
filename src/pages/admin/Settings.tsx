@@ -67,6 +67,36 @@ const SETTINGS_CATALOG: SettingDefinition[] = [
         description: 'Max concurrent quota polling requests (cap 5).',
     },
     {
+        key: 'RATE_LIMIT',
+        type: 'integer',
+        description: 'Global rate limit per second.',
+    },
+    {
+        key: 'RATE_LIMIT_REDIS_ENABLED',
+        type: 'boolean',
+        description: 'Enable Redis rate limiter.',
+    },
+    {
+        key: 'RATE_LIMIT_REDIS_ADDR',
+        type: 'string',
+        description: 'Redis address for rate limiter.',
+    },
+    {
+        key: 'RATE_LIMIT_REDIS_PASSWORD',
+        type: 'string',
+        description: 'Redis password for rate limiter.',
+    },
+    {
+        key: 'RATE_LIMIT_REDIS_DB',
+        type: 'integer',
+        description: 'Redis database index for rate limiter.',
+    },
+    {
+        key: 'RATE_LIMIT_REDIS_PREFIX',
+        type: 'string',
+        description: 'Redis key prefix for rate limiter.',
+    },
+    {
         key: 'AUTO_ASSIGN_PROXY',
         type: 'boolean',
         description: 'Auto assign proxy for new auth and API keys.',
@@ -88,11 +118,21 @@ const SETTING_EXAMPLES: Record<string, string> = {
     WEB_AUTHN_ORIGINS: 'https://domain or https://domain:port',
     QUOTA_POLL_INTERVAL_SECONDS: '180',
     QUOTA_POLL_MAX_CONCURRENCY: '5',
+    RATE_LIMIT: '100',
+    RATE_LIMIT_REDIS_ENABLED: 'true',
+    RATE_LIMIT_REDIS_ADDR: 'localhost:6379',
+    RATE_LIMIT_REDIS_PASSWORD: 'password',
+    RATE_LIMIT_REDIS_DB: '0',
+    RATE_LIMIT_REDIS_PREFIX: 'cpab:rl',
 };
 
 const POSITIVE_INTEGER_KEYS = new Set<string>([
     'QUOTA_POLL_INTERVAL_SECONDS',
     'QUOTA_POLL_MAX_CONCURRENCY',
+]);
+const NON_NEGATIVE_INTEGER_KEYS = new Set<string>([
+    'RATE_LIMIT',
+    'RATE_LIMIT_REDIS_DB',
 ]);
 
 const inputClassName =
@@ -199,6 +239,8 @@ function EditSettingModal({
     const isOriginList = setting.key === 'WEB_AUTHN_ORIGINS';
     const requiresPositiveInteger =
         setting.type === 'integer' && POSITIVE_INTEGER_KEYS.has(setting.key);
+    const requiresNonNegativeInteger =
+        setting.type === 'integer' && NON_NEGATIVE_INTEGER_KEYS.has(setting.key);
     const exampleKey = SETTING_EXAMPLES[setting.key];
     const example = exampleKey ? t(exampleKey) : '';
     const [formState, setFormState] = useState<EditFormState>({
@@ -220,6 +262,12 @@ function EditSettingModal({
             const parsed = parseInt(formState.valueText.trim(), 10);
             if (Number.isNaN(parsed) || parsed <= 0) {
                 setFormError(t('Value must be a positive integer.'));
+                return;
+            }
+        } else if (requiresNonNegativeInteger) {
+            const parsed = parseInt(formState.valueText.trim(), 10);
+            if (Number.isNaN(parsed) || parsed < 0) {
+                setFormError(t('Value must be a non-negative integer.'));
                 return;
             }
         }

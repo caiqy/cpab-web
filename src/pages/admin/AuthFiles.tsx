@@ -256,6 +256,7 @@ interface AuthFile {
     }[];
     content: Record<string, unknown>;
     is_available: boolean;
+    rate_limit: number;
     created_at: string;
     updated_at: string;
 }
@@ -539,6 +540,7 @@ export function AdminAuthFiles() {
     const [editGroupIds, setEditGroupIds] = useState<number[]>([]);
     const [editIsAvailable, setEditIsAvailable] = useState(true);
     const [editProxyUrl, setEditProxyUrl] = useState('');
+    const [editRateLimit, setEditRateLimit] = useState('0');
     const [editSaving, setEditSaving] = useState(false);
     const [editGroupMenuOpen, setEditGroupMenuOpen] = useState(false);
     const [editGroupBtnWidth, setEditGroupBtnWidth] = useState<number | undefined>(undefined);
@@ -931,6 +933,7 @@ export function AdminAuthFiles() {
         setEditGroupIds(normalizeGroupIds(file.auth_group_id || []));
         setEditIsAvailable(file.is_available);
         setEditProxyUrl(file.proxy_url || '');
+        setEditRateLimit(String(file.rate_limit ?? 0));
         setEditModalOpen(true);
     };
 
@@ -940,10 +943,13 @@ export function AdminAuthFiles() {
         try {
             const proxyUrl = editProxyUrl.trim();
             const normalizedEditGroupIds = normalizeGroupIds(editGroupIds);
+            const parsedRateLimit = Number.parseInt(editRateLimit, 10);
+            const rateLimit = Number.isNaN(parsedRateLimit) ? 0 : Math.max(0, parsedRateLimit);
             const payload: Record<string, unknown> = {
                 key: editKey,
                 is_available: editIsAvailable,
                 proxy_url: proxyUrl,
+                rate_limit: rateLimit,
             };
             if (canListGroups) {
                 payload.auth_group_id = normalizedEditGroupIds;
@@ -964,6 +970,7 @@ export function AdminAuthFiles() {
                             auth_group: selectedGroups,
                             proxy_url: proxyUrl,
                             is_available: editIsAvailable,
+                            rate_limit: rateLimit,
                             updated_at: new Date().toISOString(),
                         }
                         : item
@@ -971,6 +978,7 @@ export function AdminAuthFiles() {
             );
             setEditingFile(null);
             setEditProxyUrl('');
+            setEditRateLimit('0');
             showToast(t('Auth file updated successfully'));
         } catch (err) {
             console.error('Failed to update auth file:', err);
@@ -983,6 +991,7 @@ export function AdminAuthFiles() {
         setEditModalOpen(false);
         setEditingFile(null);
         setEditProxyUrl('');
+        setEditRateLimit('0');
         setEditGroupIds([]);
         setEditGroupSearch('');
     };
@@ -1766,6 +1775,7 @@ export function AdminAuthFiles() {
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Key')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Type')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Group')}</th>
+                                    <th className="px-6 py-4 font-semibold tracking-wider">{t('Rate limit')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Status')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Created At')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Updated At')}</th>
@@ -1775,13 +1785,13 @@ export function AdminAuthFiles() {
                             <tbody className="divide-y divide-gray-200 dark:divide-border-dark">
                                 {loading ? (
                                 <tr>
-                                        <td colSpan={9} className="px-6 py-12 text-center">
+                                        <td colSpan={10} className="px-6 py-12 text-center">
                                             {t('Loading...')}
                                         </td>
                                     </tr>
                                 ) : authFiles.length === 0 ? (
                                     <tr>
-                                        <td colSpan={9} className="px-6 py-12 text-center">
+                                        <td colSpan={10} className="px-6 py-12 text-center">
                                             {t('No auth files found')}
                                         </td>
                                     </tr>
@@ -1836,6 +1846,9 @@ export function AdminAuthFiles() {
                                                 ) : (
                                                     <span className="text-gray-400 dark:text-gray-500">—</span>
                                                 )}
+                                            </td>
+                                            <td className="px-6 py-4 font-mono text-slate-700 dark:text-gray-300">
+                                                {file.rate_limit.toLocaleString()}
                                             </td>
                                             <td className="px-6 py-4">
                                                 {file.is_available ? (
@@ -2518,6 +2531,19 @@ export function AdminAuthFiles() {
                                     value={editProxyUrl}
                                     placeholder="socks5://user:password@host:port/"
                                     onChange={(e) => setEditProxyUrl(e.target.value)}
+                                    className="block w-full p-2.5 text-sm text-slate-900 dark:text-white bg-gray-50 dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded-lg focus:ring-primary focus:border-primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    {t('Rate limit')}
+                                </label>
+                                <input
+                                    type="number"
+                                    step="1"
+                                    value={editRateLimit}
+                                    onChange={(e) => setEditRateLimit(e.target.value)}
+                                    placeholder="0"
                                     className="block w-full p-2.5 text-sm text-slate-900 dark:text-white bg-gray-50 dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded-lg focus:ring-primary focus:border-primary"
                                 />
                             </div>

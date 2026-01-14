@@ -17,6 +17,7 @@ interface ModelMapping {
     new_model_name: string;
     fork: boolean;
     selector: number;
+    rate_limit: number;
     is_enabled: boolean;
     created_at: string;
     updated_at: string;
@@ -266,6 +267,7 @@ function CreateModal({ onClose, onSuccess, canLoadModels }: CreateModalProps) {
     const [newModelName, setNewModelName] = useState('');
     const [fork, setFork] = useState(false);
     const [selector, setSelector] = useState(0);
+    const [rateLimit, setRateLimit] = useState('0');
     const [isEnabled, setIsEnabled] = useState(true);
     const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
     const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
@@ -306,6 +308,8 @@ function CreateModal({ onClose, onSuccess, canLoadModels }: CreateModalProps) {
 
     const handleSubmit = async () => {
         if (!provider || !modelName || !newModelName) return;
+        const parsedRateLimit = Number.parseInt(rateLimit, 10);
+        const rateLimitValue = Number.isNaN(parsedRateLimit) ? 0 : Math.max(0, parsedRateLimit);
         setSubmitting(true);
         try {
             await apiFetchAdmin('/v0/admin/model-mappings', {
@@ -316,6 +320,7 @@ function CreateModal({ onClose, onSuccess, canLoadModels }: CreateModalProps) {
                     new_model_name: newModelName,
                     fork,
                     selector,
+                    rate_limit: rateLimitValue,
                     is_enabled: isEnabled,
                 }),
             });
@@ -463,6 +468,20 @@ function CreateModal({ onClose, onSuccess, canLoadModels }: CreateModalProps) {
                         </div>
                     </div>
 
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                            {t('Rate limit')}
+                        </label>
+                        <input
+                            type="number"
+                            step="1"
+                            value={rateLimit}
+                            onChange={(e) => setRateLimit(e.target.value)}
+                            placeholder="0"
+                            className="w-full px-4 py-2.5 text-sm bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg text-slate-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
+                    </div>
+
                     {/* Fork Switch */}
                     <div className="flex items-center justify-between">
                         <div>
@@ -544,6 +563,7 @@ function EditModal({ mapping, onClose, onSuccess, canLoadModels }: EditModalProp
     const [newModelName, setNewModelName] = useState(mapping.new_model_name);
     const [fork, setFork] = useState(mapping.fork);
     const [selector, setSelector] = useState(mapping.selector ?? 0);
+    const [rateLimit, setRateLimit] = useState(String(mapping.rate_limit ?? 0));
     const [isEnabled, setIsEnabled] = useState(mapping.is_enabled);
     const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
     const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
@@ -582,6 +602,8 @@ function EditModal({ mapping, onClose, onSuccess, canLoadModels }: EditModalProp
 
     const handleSubmit = async () => {
         if (!provider || !modelName || !newModelName) return;
+        const parsedRateLimit = Number.parseInt(rateLimit, 10);
+        const rateLimitValue = Number.isNaN(parsedRateLimit) ? 0 : Math.max(0, parsedRateLimit);
         setSubmitting(true);
         try {
             await apiFetchAdmin(`/v0/admin/model-mappings/${mapping.id}`, {
@@ -592,6 +614,7 @@ function EditModal({ mapping, onClose, onSuccess, canLoadModels }: EditModalProp
                     new_model_name: newModelName,
                     fork,
                     selector,
+                    rate_limit: rateLimitValue,
                     is_enabled: isEnabled,
                 }),
             });
@@ -602,6 +625,7 @@ function EditModal({ mapping, onClose, onSuccess, canLoadModels }: EditModalProp
                 new_model_name: newModelName,
                 fork,
                 selector,
+                rate_limit: rateLimitValue,
                 is_enabled: isEnabled,
             });
             onClose();
@@ -743,6 +767,20 @@ function EditModal({ mapping, onClose, onSuccess, canLoadModels }: EditModalProp
                                 />
                             )}
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                            {t('Rate limit')}
+                        </label>
+                        <input
+                            type="number"
+                            step="1"
+                            value={rateLimit}
+                            onChange={(e) => setRateLimit(e.target.value)}
+                            placeholder="0"
+                            className="w-full px-4 py-2.5 text-sm bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg text-slate-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -1961,6 +1999,7 @@ export function AdminModels() {
                                     <th className="px-6 py-4">{t('Provider')}</th>
                                     <th className="px-6 py-4">{t('Model Name')}</th>
                                     <th className="px-6 py-4">{t('New Model Name')}</th>
+                                    <th className="px-6 py-4">{t('Rate limit')}</th>
                                     <th className="px-6 py-4">{t('Fork')}</th>
                                     <th className="px-6 py-4">{t('Status')}</th>
                                     <th className="px-6 py-4">{t('Actions')}</th>
@@ -1969,7 +2008,7 @@ export function AdminModels() {
                         <tbody className="divide-y divide-gray-200 dark:divide-border-dark">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                                         <div className="flex items-center justify-center gap-2">
                                             <Icon name="progress_activity" className="animate-spin" />
                                             <span>{t('Loading...')}</span>
@@ -1978,7 +2017,7 @@ export function AdminModels() {
                                 </tr>
                             ) : filteredMappings.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                                         {t('No model mappings found')}
                                     </td>
                                 </tr>
@@ -2015,6 +2054,9 @@ export function AdminModels() {
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-900 dark:text-white font-mono">
                                             {mapping.new_model_name}
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-600 dark:text-text-secondary font-mono">
+                                            {mapping.rate_limit.toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4">
                                             <span
