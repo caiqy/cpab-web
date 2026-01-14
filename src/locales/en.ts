@@ -291,6 +291,7 @@ const en: Record<string, string> = {
     "Price": "Price",
     "Price / request": "Price / request",
     "Pricing": "Pricing",
+    "Priority": "Priority",
     "Privacy Policy": "Privacy Policy",
     "Purchase a plan to get started": "Purchase a plan to get started",
     "Real-time insights into your API infrastructure.": "Real-time insights into your API infrastructure.",

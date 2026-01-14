@@ -291,6 +291,7 @@ const zhCN: Record<string, string> = {
     "Price": "价格",
     "Price / request": "单次请求价格",
     "Pricing": "价格",
+    "Priority": "优先级",
     "Privacy Policy": "隐私政策",
     "Purchase a plan to get started": "购买套餐以开始使用",
     "Real-time insights into your API infrastructure.": "实时洞察 API 基础设施",

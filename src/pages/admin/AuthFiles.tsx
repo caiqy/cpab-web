@@ -249,6 +249,7 @@ interface AuthFile {
     id: number;
     key: string;
     proxy_url?: string | null;
+    priority: number;
     auth_group_id: number[];
     auth_group?: {
         id: number;
@@ -541,6 +542,7 @@ export function AdminAuthFiles() {
     const [editIsAvailable, setEditIsAvailable] = useState(true);
     const [editProxyUrl, setEditProxyUrl] = useState('');
     const [editRateLimit, setEditRateLimit] = useState('0');
+    const [editPriority, setEditPriority] = useState('0');
     const [editSaving, setEditSaving] = useState(false);
     const [editGroupMenuOpen, setEditGroupMenuOpen] = useState(false);
     const [editGroupBtnWidth, setEditGroupBtnWidth] = useState<number | undefined>(undefined);
@@ -934,6 +936,7 @@ export function AdminAuthFiles() {
         setEditIsAvailable(file.is_available);
         setEditProxyUrl(file.proxy_url || '');
         setEditRateLimit(String(file.rate_limit ?? 0));
+        setEditPriority(String(file.priority ?? 0));
         setEditModalOpen(true);
     };
 
@@ -945,11 +948,14 @@ export function AdminAuthFiles() {
             const normalizedEditGroupIds = normalizeGroupIds(editGroupIds);
             const parsedRateLimit = Number.parseInt(editRateLimit, 10);
             const rateLimit = Number.isNaN(parsedRateLimit) ? 0 : Math.max(0, parsedRateLimit);
+            const parsedPriority = Number.parseInt(editPriority, 10);
+            const priority = Number.isNaN(parsedPriority) ? 0 : parsedPriority;
             const payload: Record<string, unknown> = {
                 key: editKey,
                 is_available: editIsAvailable,
                 proxy_url: proxyUrl,
                 rate_limit: rateLimit,
+                priority,
             };
             if (canListGroups) {
                 payload.auth_group_id = normalizedEditGroupIds;
@@ -971,6 +977,7 @@ export function AdminAuthFiles() {
                             proxy_url: proxyUrl,
                             is_available: editIsAvailable,
                             rate_limit: rateLimit,
+                            priority,
                             updated_at: new Date().toISOString(),
                         }
                         : item
@@ -979,6 +986,7 @@ export function AdminAuthFiles() {
             setEditingFile(null);
             setEditProxyUrl('');
             setEditRateLimit('0');
+            setEditPriority('0');
             showToast(t('Auth file updated successfully'));
         } catch (err) {
             console.error('Failed to update auth file:', err);
@@ -992,6 +1000,7 @@ export function AdminAuthFiles() {
         setEditingFile(null);
         setEditProxyUrl('');
         setEditRateLimit('0');
+        setEditPriority('0');
         setEditGroupIds([]);
         setEditGroupSearch('');
     };
@@ -1749,7 +1758,7 @@ export function AdminAuthFiles() {
 
                 <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-border-dark shadow-sm overflow-hidden">
                     <div className="relative overflow-x-auto">
-                        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <table className="min-w-full whitespace-nowrap text-sm text-left text-gray-500 dark:text-gray-400">
                             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-surface-dark dark:text-gray-400 border-b border-gray-200 dark:border-border-dark">
                                 <tr>
                                     <th className="px-6 py-4">
@@ -1771,10 +1780,10 @@ export function AdminAuthFiles() {
                                             title={t('Select all')}
                                         />
                                     </th>
-                                    <th className="px-6 py-4 font-semibold tracking-wider">{t('ID')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Key')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Type')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('User Group')}</th>
+                                    <th className="px-6 py-4 font-semibold tracking-wider">{t('Priority')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Rate limit')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Status')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Created At')}</th>
@@ -1784,7 +1793,7 @@ export function AdminAuthFiles() {
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-border-dark">
                                 {loading ? (
-                                <tr>
+                                    <tr>
                                         <td colSpan={10} className="px-6 py-12 text-center">
                                             {t('Loading...')}
                                         </td>
@@ -1820,9 +1829,6 @@ export function AdminAuthFiles() {
                                                 />
                                             </td>
                                             <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">
-                                                {file.id}
-                                            </td>
-                                            <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">
                                                 {file.key}
                                             </td>
                                             <td className="px-6 py-4">
@@ -1846,6 +1852,9 @@ export function AdminAuthFiles() {
                                                 ) : (
                                                     <span className="text-gray-400 dark:text-gray-500">—</span>
                                                 )}
+                                            </td>
+                                            <td className="px-6 py-4 font-mono text-slate-700 dark:text-gray-300">
+                                                {file.priority}
                                             </td>
                                             <td className="px-6 py-4 font-mono text-slate-700 dark:text-gray-300">
                                                 {file.rate_limit.toLocaleString()}
@@ -2543,6 +2552,19 @@ export function AdminAuthFiles() {
                                     step="1"
                                     value={editRateLimit}
                                     onChange={(e) => setEditRateLimit(e.target.value)}
+                                    placeholder="0"
+                                    className="block w-full p-2.5 text-sm text-slate-900 dark:text-white bg-gray-50 dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded-lg focus:ring-primary focus:border-primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    {t('Priority')}
+                                </label>
+                                <input
+                                    type="number"
+                                    step="1"
+                                    value={editPriority}
+                                    onChange={(e) => setEditPriority(e.target.value)}
                                     placeholder="0"
                                     className="block w-full p-2.5 text-sm text-slate-900 dark:text-white bg-gray-50 dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded-lg focus:ring-primary focus:border-primary"
                                 />

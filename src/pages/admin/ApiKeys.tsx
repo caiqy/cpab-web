@@ -24,6 +24,7 @@ interface ProviderApiKey {
     id: number;
     provider: string;
     name: string;
+    priority: number;
     api_key: string;
     prefix: string;
     base_url: string;
@@ -151,6 +152,7 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
     const { t } = useTranslation();
     const [provider, setProvider] = useState(initial?.provider || '');
     const [name, setName] = useState(initial?.name || '');
+    const [priority, setPriority] = useState<number>(initial?.priority ?? 0);
     const [apiKey, setApiKey] = useState(initial?.api_key || '');
     const [prefix, setPrefix] = useState(initial?.prefix || '');
     const [baseURL, setBaseURL] = useState(initial?.base_url || '');
@@ -310,6 +312,7 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
         const payload = {
             provider,
             name: name.trim(),
+            priority,
             api_key: apiKey.trim(),
             prefix: prefix.trim(),
             base_url: baseURL.trim(),
@@ -404,6 +407,20 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
                             />
                         </div>
                     )}
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                            {t('Priority')}
+                        </label>
+                        <input
+                            type="number"
+                            step="1"
+                            value={priority}
+                            onChange={(e) => setPriority(Number.parseInt(e.target.value || '0', 10) || 0)}
+                            placeholder="0"
+                            className="w-full px-4 py-2.5 text-sm bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg text-slate-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
+                    </div>
 
                     {provider !== 'openai-compatibility' && (
                         <div>
@@ -818,6 +835,7 @@ export function AdminApiKeys() {
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('ID')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Type')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Name')}</th>
+                                    <th className="px-6 py-4 font-semibold tracking-wider">{t('Priority')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('API Key(s)')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Base URL')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Prefix')}</th>
@@ -830,13 +848,13 @@ export function AdminApiKeys() {
                             <tbody className="divide-y divide-gray-200 dark:divide-border-dark">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={8} className="px-6 py-12 text-center">
+                                        <td colSpan={9} className="px-6 py-12 text-center">
                                             {t('Loading...')}
                                         </td>
                                     </tr>
                                 ) : keys.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="px-6 py-12 text-center">
+                                        <td colSpan={9} className="px-6 py-12 text-center">
                                             {t('No API keys found')}
                                         </td>
                                     </tr>
@@ -856,6 +874,9 @@ export function AdminApiKeys() {
                                             </td>
                                             <td className="px-6 py-4 text-slate-900 dark:text-white">
                                                 {item.name || '—'}
+                                            </td>
+                                            <td className="px-6 py-4 font-mono text-slate-700 dark:text-gray-300">
+                                                {item.priority}
                                             </td>
                                             <td className="px-6 py-4 text-slate-900 dark:text-white font-mono text-xs">
                                                 {formatKeySummary(item, t)}
