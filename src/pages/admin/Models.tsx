@@ -7,6 +7,7 @@ import { MultiGroupDropdownMenu } from '../../components/admin/MultiGroupDropdow
 import { Icon } from '../../components/Icon';
 import { apiFetchAdmin } from '../../api/config';
 import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminPermissions';
+import { useStickyActionsDivider } from '../../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -1879,6 +1880,11 @@ export function AdminModels() {
         return modelName.includes(normalizedModelSearch) || newModelName.includes(normalizedModelSearch);
     });
 
+    const { tableScrollRef, handleTableScroll, showActionsDivider } = useStickyActionsDivider(
+        filteredMappings.length,
+        loading
+    );
+
     useEffect(() => {
         setSelectedIds((prev) => {
             if (prev.size === 0) return prev;
@@ -2138,7 +2144,7 @@ export function AdminModels() {
                 </div>
 
                 <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-border-dark overflow-hidden">
-                    <div className="overflow-x-auto">
+                    <div ref={tableScrollRef} className="overflow-x-auto" onScroll={handleTableScroll}>
                         <table className="w-full text-left text-sm">
                             <thead className="bg-gray-50 dark:bg-surface-dark text-gray-500 dark:text-gray-400 uppercase text-xs font-semibold border-b border-gray-200 dark:border-border-dark">
                                 <tr>
@@ -2168,7 +2174,13 @@ export function AdminModels() {
                                     <th className="px-6 py-4">{t('User Group')}</th>
                                     <th className="px-6 py-4">{t('Fork')}</th>
                                     <th className="px-6 py-4">{t('Status')}</th>
-                                    <th className="px-6 py-4">{t('Actions')}</th>
+                                    <th
+                                        className={`px-6 py-4 text-center sticky right-0 z-20 bg-gray-50 dark:bg-surface-dark relative after:content-[''] after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-gray-200 dark:after:bg-border-dark after:pointer-events-none ${
+                                            showActionsDivider ? 'after:opacity-100' : 'after:opacity-0'
+                                        }`}
+                                    >
+                                        {t('Actions')}
+                                    </th>
                                 </tr>
                             </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-border-dark">
@@ -2191,7 +2203,7 @@ export function AdminModels() {
                                 filteredMappings.map((mapping) => (
                                     <tr
                                         key={mapping.id}
-                                        className="hover:bg-gray-50 dark:hover:bg-background-dark transition-colors"
+                                        className="hover:bg-gray-50 dark:hover:bg-background-dark group"
                                     >
                                         <td className="px-6 py-4">
                                             <AdminCheckbox
@@ -2256,8 +2268,12 @@ export function AdminModels() {
                                                 {mapping.is_enabled ? t('Enabled') : t('Disabled')}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-1">
+                                        <td
+                                            className={`px-6 py-4 text-center sticky right-0 z-10 bg-white dark:bg-surface-dark group-hover:bg-gray-50 dark:group-hover:bg-background-dark relative after:content-[''] after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-gray-200 dark:after:bg-border-dark after:pointer-events-none ${
+                                                showActionsDivider ? 'after:opacity-100' : 'after:opacity-0'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-center gap-1">
                                                 {canListPayloadRules && (
                                                     <button
                                                         onClick={() => setPayloadModalMapping(mapping)}

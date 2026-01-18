@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { apiFetchAdmin } from '../../api/config';
 import { Icon } from '../../components/Icon';
 import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminPermissions';
+import { useStickyActionsDivider } from '../../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
 
 interface TypeDropdownMenuProps {
@@ -534,6 +535,10 @@ export function AdminAuthFiles() {
     const authSnapshotRef = useRef<Set<string>>(new Set());
     const authStartAtRef = useRef<Date | null>(null);
     const importInputRef = useRef<HTMLInputElement>(null);
+    const { tableScrollRef, handleTableScroll, showActionsDivider } = useStickyActionsDivider(
+        authFiles.length,
+        loading
+    );
 
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editingFile, setEditingFile] = useState<AuthFile | null>(null);
@@ -629,7 +634,6 @@ export function AdminAuthFiles() {
             setNewMenuWidth(Math.ceil(maxWidth) + 64);
         }
     }, [availableAuthTypes, canImportAuthFiles, canOpenNewMenu, t]);
-
 
     const fetchAuthGroups = useCallback(async () => {
         if (!canListGroups) {
@@ -1633,7 +1637,7 @@ export function AdminAuthFiles() {
                                 </button>
                                 {newMenuOpen && (
                                     <div
-                                        className="absolute right-0 mt-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-lg shadow-lg z-10"
+                                        className="absolute right-0 mt-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-lg shadow-lg z-50"
                                         style={newMenuWidth ? { width: newMenuWidth } : undefined}
                                     >
                                         {availableAuthTypes.map((type) => (
@@ -1757,7 +1761,7 @@ export function AdminAuthFiles() {
                 </div>
 
                 <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-border-dark shadow-sm overflow-hidden">
-                    <div className="relative overflow-x-auto">
+                    <div ref={tableScrollRef} className="relative overflow-x-auto" onScroll={handleTableScroll}>
                         <table className="min-w-full whitespace-nowrap text-sm text-left text-gray-500 dark:text-gray-400">
                             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-surface-dark dark:text-gray-400 border-b border-gray-200 dark:border-border-dark">
                                 <tr>
@@ -1788,7 +1792,13 @@ export function AdminAuthFiles() {
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Status')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Created At')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Updated At')}</th>
-                                    <th className="px-6 py-4 font-semibold tracking-wider text-right">{t('Actions')}</th>
+                                    <th
+                                        className={`px-6 py-4 font-semibold tracking-wider text-center sticky right-0 z-20 bg-gray-50 dark:bg-surface-dark relative after:content-[''] after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-gray-200 dark:after:bg-border-dark after:pointer-events-none ${
+                                            showActionsDivider ? 'after:opacity-100' : 'after:opacity-0'
+                                        }`}
+                                    >
+                                        {t('Actions')}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-border-dark">
@@ -1808,7 +1818,7 @@ export function AdminAuthFiles() {
                                     authFiles.map((file) => (
                                         <tr
                                             key={file.id}
-                                            className="hover:bg-gray-50 dark:hover:bg-background-dark transition-colors group"
+                                            className="hover:bg-gray-50 dark:hover:bg-background-dark group"
                                         >
                                             <td className="px-6 py-4">
                                                 <AdminCheckbox
@@ -1876,8 +1886,12 @@ export function AdminAuthFiles() {
                                             <td className="px-6 py-4 font-mono text-xs">
                                                 {formatDate(file.updated_at, locale)}
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-1">
+                                            <td
+                                                className={`px-6 py-4 text-center sticky right-0 z-10 bg-white dark:bg-surface-dark group-hover:bg-gray-50 dark:group-hover:bg-background-dark relative after:content-[''] after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-gray-200 dark:after:bg-border-dark after:pointer-events-none ${
+                                                    showActionsDivider ? 'after:opacity-100' : 'after:opacity-0'
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-center gap-1">
                                                     {canUpdateAuthFiles && (
                                                         <button
                                                             onClick={() => handleEdit(file)}

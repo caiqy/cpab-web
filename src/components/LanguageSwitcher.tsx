@@ -107,9 +107,9 @@ function LanguageDropdownMenu({
 
     return createPortal(
         <>
-            <div className="fixed inset-0 z-40" onClick={onClose} />
+            <div className="fixed inset-0 z-[80]" onClick={onClose} />
             <div
-                className={`fixed z-50 ${menuClass} border rounded-lg shadow-lg overflow-hidden`}
+                className={`fixed z-[90] ${menuClass} border rounded-lg shadow-lg overflow-hidden`}
                 style={{
                     top: position.top,
                     bottom: position.bottom,

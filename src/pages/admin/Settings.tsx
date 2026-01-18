@@ -4,6 +4,7 @@ import { AdminNoAccessCard } from '../../components/admin/AdminNoAccessCard';
 import { apiFetchAdmin } from '../../api/config';
 import { Icon } from '../../components/Icon';
 import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminPermissions';
+import { useStickyActionsDivider } from '../../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -457,6 +458,10 @@ export function AdminSettings() {
     const canUpdateSettings = hasPermission(buildAdminPermissionKey('PUT', '/v0/admin/settings/:key'));
     const canEditSettings = canCreateSettings || canUpdateSettings;
     const columnCount = canEditSettings ? 5 : 4;
+    const { tableScrollRef, handleTableScroll, showActionsDivider } = useStickyActionsDivider(
+        settingsList.length,
+        loading
+    );
 
     useEffect(() => {
         if (!canListSettings) {
@@ -530,7 +535,7 @@ export function AdminSettings() {
     return (
         <AdminDashboardLayout title={t('Settings')} subtitle={t('Manage fixed system settings.')}>
             <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-border-dark shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
+                <div ref={tableScrollRef} className="overflow-x-auto" onScroll={handleTableScroll}>
                     <table className="w-full text-left text-sm">
                         <thead className="bg-gray-50 dark:bg-surface-dark text-gray-500 dark:text-gray-400 uppercase text-xs font-semibold border-b border-gray-200 dark:border-border-dark">
                             <tr>
@@ -547,7 +552,11 @@ export function AdminSettings() {
                                     {t('Description')}
                                 </th>
                                 {canEditSettings && (
-                                    <th className="px-6 py-4 text-right">
+                                    <th
+                                        className={`px-6 py-4 text-center sticky right-0 z-20 bg-gray-50 dark:bg-surface-dark relative after:content-[''] after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-gray-200 dark:after:bg-border-dark after:pointer-events-none ${
+                                            showActionsDivider ? 'after:opacity-100' : 'after:opacity-0'
+                                        }`}
+                                    >
                                         {t('Actions')}
                                     </th>
                                 )}
@@ -576,7 +585,7 @@ export function AdminSettings() {
                                 settingsList.map((setting) => (
                                     <tr
                                         key={setting.key}
-                                        className="hover:bg-slate-50 dark:hover:bg-background-dark transition-colors"
+                                        className="hover:bg-slate-50 dark:hover:bg-background-dark group"
                                     >
                                         <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">
                                             {setting.key}
@@ -591,7 +600,11 @@ export function AdminSettings() {
                                             {t(setting.description)}
                                         </td>
                                         {canEditSettings && (
-                                            <td className="px-6 py-4 text-right">
+                                            <td
+                                                className={`px-6 py-4 text-center sticky right-0 z-10 bg-white dark:bg-surface-dark group-hover:bg-slate-50 dark:group-hover:bg-background-dark relative after:content-[''] after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-gray-200 dark:after:bg-border-dark after:pointer-events-none ${
+                                                    showActionsDivider ? 'after:opacity-100' : 'after:opacity-0'
+                                                }`}
+                                            >
                                                 <button
                                                     onClick={() => setEditing(setting)}
                                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-border-dark text-slate-700 dark:text-text-secondary hover:bg-slate-100 dark:hover:bg-background-dark transition-colors"

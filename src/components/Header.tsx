@@ -13,7 +13,7 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
     const resolvedSubtitle = subtitle ?? t('Real-time insights into your API infrastructure.');
 
     return (
-        <header className="sticky top-0 z-10 bg-white dark:bg-background-dark backdrop-blur-md border-b border-gray-200 dark:border-border-dark px-8 py-5">
+        <header className="sticky top-0 z-30 bg-white dark:bg-background-dark backdrop-blur-md border-b border-gray-200 dark:border-border-dark px-8 py-5">
             <div className="flex items-start justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">

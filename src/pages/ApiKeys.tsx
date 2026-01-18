@@ -4,6 +4,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { Icon } from '../components/Icon';
 import { apiFetch } from '../api/config';
+import { useStickyActionsDivider } from '../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
 
 interface StatusDropdownMenuProps {
@@ -159,6 +160,10 @@ export function ApiKeys() {
     } | null>(null);
     const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
     const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const { tableScrollRef, handleTableScroll, showActionsDivider } = useStickyActionsDivider(
+        apiKeys.length,
+        loading
+    );
 
     const showToast = useCallback((message: string) => {
         if (toastTimeoutRef.current) {
@@ -395,7 +400,11 @@ export function ApiKeys() {
             </div>
 
             {/* Table */}
-            <div className="relative overflow-x-auto rounded-xl border border-gray-200 dark:border-border-dark shadow-sm">
+            <div
+                ref={tableScrollRef}
+                className="relative overflow-x-auto rounded-xl border border-gray-200 dark:border-border-dark shadow-sm"
+                onScroll={handleTableScroll}
+            >
                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-surface-dark dark:text-gray-400 border-b border-gray-200 dark:border-border-dark">
                         <tr>
@@ -404,7 +413,13 @@ export function ApiKeys() {
                             <th className="px-6 py-4 font-semibold tracking-wider">{t('Expires')}</th>
                             <th className="px-6 py-4 font-semibold tracking-wider">{t('Last Used')}</th>
                             <th className="px-6 py-4 font-semibold tracking-wider">{t('Status')}</th>
-                            <th className="px-6 py-4 font-semibold tracking-wider text-right">{t('Actions')}</th>
+                            <th
+                                className={`px-6 py-4 font-semibold tracking-wider text-center sticky right-0 z-20 bg-gray-50 dark:bg-surface-dark relative after:content-[''] after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-gray-200 dark:after:bg-border-dark after:pointer-events-none ${
+                                    showActionsDivider ? 'after:opacity-100' : 'after:opacity-0'
+                                }`}
+                            >
+                                {t('Actions')}
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-background-dark divide-y divide-gray-200 dark:divide-border-dark">
@@ -424,7 +439,7 @@ export function ApiKeys() {
                             apiKeys.map((key) => (
                                 <tr
                                     key={key.id}
-                                    className={`hover:bg-gray-50 dark:hover:bg-surface-dark/50 transition-colors group ${
+                                    className={`bg-white dark:bg-background-dark hover:bg-gray-50 dark:hover:bg-surface-dark/50 group ${
                                         key.status === 'revoked' ? 'bg-gray-50/50 dark:bg-[#151b28] text-gray-400' : ''
                                     }`}
                                 >
@@ -477,8 +492,12 @@ export function ApiKeys() {
                                             {getStatusText(key, t)}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
+                                    <td
+                                        className={`px-6 py-4 text-center sticky right-0 z-10 bg-inherit relative after:content-[''] after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-gray-200 dark:after:bg-border-dark after:pointer-events-none ${
+                                            showActionsDivider ? 'after:opacity-100' : 'after:opacity-0'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-center gap-2">
                                             {key.status === 'revoked' ? (
                                                 <button
                                                     onClick={() => handleDelete(key.id)}

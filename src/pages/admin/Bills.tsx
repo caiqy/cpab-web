@@ -5,6 +5,7 @@ import { AdminNoAccessCard } from '../../components/admin/AdminNoAccessCard';
 import { apiFetchAdmin } from '../../api/config';
 import { Icon } from '../../components/Icon';
 import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminPermissions';
+import { useStickyActionsDivider } from '../../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
 
 interface Bill {
@@ -177,6 +178,11 @@ export function AdminBills() {
         currentPage * PAGE_SIZE
     );
 
+    const { tableScrollRef, handleTableScroll, showActionsDivider } = useStickyActionsDivider(
+        paginatedBills.length,
+        loading
+    );
+
     const handleStatusFilterChange = (status: number | null) => {
         setStatusFilter(status);
         setCurrentPage(1);
@@ -266,7 +272,7 @@ export function AdminBills() {
                 </div>
 
                 <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-border-dark shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
+                    <div ref={tableScrollRef} className="overflow-x-auto" onScroll={handleTableScroll}>
                         <table className="w-full text-left text-sm">
                             <thead className="bg-gray-50 dark:bg-surface-dark text-gray-500 dark:text-gray-400 uppercase text-xs font-semibold border-b border-gray-200 dark:border-border-dark">
                                 <tr>
@@ -281,7 +287,13 @@ export function AdminBills() {
                                     <th className="px-6 py-4">{t('Status')}</th>
                                     <th className="px-6 py-4">{t('Enabled')}</th>
                                     <th className="px-6 py-4">{t('Created At')}</th>
-                                    <th className="px-6 py-4">{t('Actions')}</th>
+                                    <th
+                                        className={`px-6 py-4 text-center sticky right-0 z-20 bg-gray-50 dark:bg-surface-dark relative after:content-[''] after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-gray-200 dark:after:bg-border-dark after:pointer-events-none ${
+                                            showActionsDivider ? 'after:opacity-100' : 'after:opacity-0'
+                                        }`}
+                                    >
+                                        {t('Actions')}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-border-dark">
@@ -308,7 +320,7 @@ export function AdminBills() {
                                         return (
                                             <tr
                                                 key={bill.id}
-                                                className="hover:bg-gray-50 dark:hover:bg-background-dark transition-colors"
+                                                className="hover:bg-gray-50 dark:hover:bg-background-dark group"
                                             >
                                                 <td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white font-medium">
                                                     {bill.id}
@@ -362,8 +374,12 @@ export function AdminBills() {
                                                 <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono text-xs">
                                                     {formatDate(bill.created_at)}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center gap-1">
+                                                <td
+                                                    className={`px-6 py-4 whitespace-nowrap text-center sticky right-0 z-10 bg-white dark:bg-surface-dark group-hover:bg-gray-50 dark:group-hover:bg-background-dark relative after:content-[''] after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-gray-200 dark:after:bg-border-dark after:pointer-events-none ${
+                                                        showActionsDivider ? 'after:opacity-100' : 'after:opacity-0'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center justify-center gap-1">
                                                         {canUpdateBill && (
                                                             <button
                                                                 onClick={() => window.location.href = `/admin/bills/${bill.id}/edit`}

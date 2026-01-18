@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Icon } from '../../components/Icon';
 import { apiFetchAdmin } from '../../api/config';
 import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminPermissions';
+import { useStickyActionsDivider } from '../../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -725,6 +726,8 @@ export function AdminApiKeys() {
         }
     }, [fetchData, canListProviderKeys]);
 
+    const { tableScrollRef, handleTableScroll, showActionsDivider } = useStickyActionsDivider(keys.length, loading);
+
     const handleDelete = async (item: ProviderApiKey) => {
         if (!canDeleteProviderKey) {
             return;
@@ -828,7 +831,7 @@ export function AdminApiKeys() {
                 </div>
 
                 <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-border-dark shadow-sm overflow-hidden">
-                    <div className="relative overflow-x-auto">
+                    <div ref={tableScrollRef} className="relative overflow-x-auto" onScroll={handleTableScroll}>
                         <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-surface-dark dark:text-gray-400 border-b border-gray-200 dark:border-border-dark">
                                 <tr>
@@ -840,7 +843,11 @@ export function AdminApiKeys() {
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Base URL')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Prefix')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Updated At')}</th>
-                                    <th className="px-6 py-4 font-semibold tracking-wider text-right">
+                                    <th
+                                        className={`px-6 py-4 font-semibold tracking-wider text-center sticky right-0 z-20 bg-gray-50 dark:bg-surface-dark relative after:content-[''] after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-gray-200 dark:after:bg-border-dark after:pointer-events-none ${
+                                            showActionsDivider ? 'after:opacity-100' : 'after:opacity-0'
+                                        }`}
+                                    >
                                         {t('Actions')}
                                     </th>
                                 </tr>
@@ -862,7 +869,7 @@ export function AdminApiKeys() {
                                     keys.map((item) => (
                                         <tr
                                             key={item.id}
-                                            className="hover:bg-gray-50 dark:hover:bg-background-dark transition-colors group"
+                                            className="hover:bg-gray-50 dark:hover:bg-background-dark group"
                                         >
                                             <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">
                                                 {item.id}
@@ -890,8 +897,12 @@ export function AdminApiKeys() {
                                             <td className="px-6 py-4 font-mono text-xs">
                                                 {formatDate(item.updated_at, locale)}
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-1">
+                                            <td
+                                                className={`px-6 py-4 text-center sticky right-0 z-10 bg-white dark:bg-surface-dark group-hover:bg-gray-50 dark:group-hover:bg-background-dark relative after:content-[''] after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-gray-200 dark:after:bg-border-dark after:pointer-events-none ${
+                                                    showActionsDivider ? 'after:opacity-100' : 'after:opacity-0'
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-center gap-1">
                                                     {canUpdateProviderKey && (
                                                         <button
                                                             onClick={() => setEditing(item)}
