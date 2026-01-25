@@ -793,6 +793,7 @@ const en: Record<string, string> = {
     "Remove": "Remove",
     "Selected files": "Selected files",
     "Some files failed to import.": "Some files failed to import.",
+    "New version available": "New version available",
     "Upload": "Upload",
     "Uploading...": "Uploading...",
 };

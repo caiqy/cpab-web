@@ -2222,18 +2222,18 @@ export function AdminModels() {
                                                 title={t('Select row')}
                                             />
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getProviderStyle(mapping.provider)}`}>
                                                 {mapping.provider}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-slate-900 dark:text-white font-mono">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-white font-mono">
                                             {mapping.model_name}
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-slate-900 dark:text-white font-mono">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-white font-mono">
                                             {mapping.new_model_name}
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-slate-600 dark:text-text-secondary font-mono">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-text-secondary font-mono">
                                             {mapping.rate_limit.toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary">
@@ -2252,7 +2252,7 @@ export function AdminModels() {
                                                     : t('Selected {{count}}', { count: mapping.user_group_id.length })}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-4 whitespace-nowrap">
                                             <span
                                                 className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${
                                                     mapping.fork
@@ -2263,8 +2263,8 @@ export function AdminModels() {
                                                 {mapping.fork ? t('Yes') : t('No')}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border whitespace-nowrap ${getStatusStyle(mapping.is_enabled)}`}>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusStyle(mapping.is_enabled)}`}>
                                                 {mapping.is_enabled ? t('Enabled') : t('Disabled')}
                                             </span>
                                         </td>

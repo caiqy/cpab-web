@@ -859,6 +859,223 @@ function BillingRuleModal({
     );
 }
 
+interface BatchImportModalProps {
+    authGroups: GroupOption[];
+    userGroups: GroupOption[];
+    submitting: boolean;
+    onClose: () => void;
+    onSubmit: (authGroupId: number, userGroupId: number, billingType: number) => void;
+}
+
+function BatchImportModal({
+    authGroups,
+    userGroups,
+    submitting,
+    onClose,
+    onSubmit,
+}: BatchImportModalProps) {
+    const { t } = useTranslation();
+    const [authGroupId, setAuthGroupId] = useState<number | null>(null);
+    const [userGroupId, setUserGroupId] = useState<number | null>(null);
+    const [billingType, setBillingType] = useState<number>(2);
+    const [authGroupMenuOpen, setAuthGroupMenuOpen] = useState(false);
+    const [userGroupMenuOpen, setUserGroupMenuOpen] = useState(false);
+    const [billingTypeMenuOpen, setBillingTypeMenuOpen] = useState(false);
+    const [authGroupSearch, setAuthGroupSearch] = useState('');
+    const [userGroupSearch, setUserGroupSearch] = useState('');
+    const [error, setError] = useState('');
+    const billingTypeBtnRef = useRef<HTMLButtonElement>(null);
+
+    const BILLING_TYPE_OPTIONS: DropdownOption[] = [
+        { label: t('Per Request'), value: '1' },
+        { label: t('Per Token'), value: '2' },
+    ];
+
+    const filteredAuthGroups = useMemo(() => {
+        if (!authGroupSearch.trim()) return authGroups;
+        const lower = authGroupSearch.toLowerCase();
+        return authGroups.filter(
+            (g) => g.name.toLowerCase().includes(lower) || g.id.toString().includes(lower)
+        );
+    }, [authGroups, authGroupSearch]);
+
+    const filteredUserGroups = useMemo(() => {
+        if (!userGroupSearch.trim()) return userGroups;
+        const lower = userGroupSearch.toLowerCase();
+        return userGroups.filter(
+            (g) => g.name.toLowerCase().includes(lower) || g.id.toString().includes(lower)
+        );
+    }, [userGroups, userGroupSearch]);
+
+    const selectedAuthGroup = authGroups.find((g) => g.id === authGroupId);
+    const selectedUserGroup = userGroups.find((g) => g.id === userGroupId);
+
+    const handleSubmit = () => {
+        setError('');
+        if (!authGroupId) {
+            setError(t('Please select an Auth Group'));
+            return;
+        }
+        if (!userGroupId) {
+            setError(t('Please select a User Group'));
+            return;
+        }
+        onSubmit(authGroupId, userGroupId, billingType);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white dark:bg-surface-dark rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-border-dark">
+                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                        {t('Import All Models')}
+                    </h2>
+                    <p className="text-sm text-slate-500 dark:text-text-secondary mt-1">
+                        {t('Import billing rules for all enabled model mappings')}
+                    </p>
+                </div>
+                <div className="p-6 overflow-y-auto space-y-4">
+                    {error && (
+                        <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg text-sm">
+                            {error}
+                        </div>
+                    )}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            {t('Auth Group')} *
+                        </label>
+                        <button
+                            type="button"
+                            id="batch-import-auth-group-btn"
+                            onClick={() => setAuthGroupMenuOpen(!authGroupMenuOpen)}
+                            className={inputClassName + ' text-left flex items-center justify-between'}
+                        >
+                            <span className={selectedAuthGroup ? '' : 'text-gray-400'}>
+                                {selectedAuthGroup ? (
+                                    <>
+                                        <span className="font-mono text-xs text-slate-500 dark:text-text-secondary mr-2">
+                                            #{selectedAuthGroup.id}
+                                        </span>
+                                        {selectedAuthGroup.name}
+                                    </>
+                                ) : (
+                                    t('Select Auth Group')
+                                )}
+                            </span>
+                            <Icon name="expand_more" size={18} className="text-gray-400" />
+                        </button>
+                        {authGroupMenuOpen && (
+                            <SearchableDropdownMenu
+                                anchorId="batch-import-auth-group-btn"
+                                options={filteredAuthGroups}
+                                selectedId={authGroupId}
+                                search={authGroupSearch}
+                                menuWidth={320}
+                                onSearchChange={setAuthGroupSearch}
+                                onSelect={(id) => {
+                                    setAuthGroupId(id);
+                                    setAuthGroupMenuOpen(false);
+                                }}
+                                onClose={() => setAuthGroupMenuOpen(false)}
+                            />
+                        )}
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            {t('User Group')} *
+                        </label>
+                        <button
+                            type="button"
+                            id="batch-import-user-group-btn"
+                            onClick={() => setUserGroupMenuOpen(!userGroupMenuOpen)}
+                            className={inputClassName + ' text-left flex items-center justify-between'}
+                        >
+                            <span className={selectedUserGroup ? '' : 'text-gray-400'}>
+                                {selectedUserGroup ? (
+                                    <>
+                                        <span className="font-mono text-xs text-slate-500 dark:text-text-secondary mr-2">
+                                            #{selectedUserGroup.id}
+                                        </span>
+                                        {selectedUserGroup.name}
+                                    </>
+                                ) : (
+                                    t('Select User Group')
+                                )}
+                            </span>
+                            <Icon name="expand_more" size={18} className="text-gray-400" />
+                        </button>
+                        {userGroupMenuOpen && (
+                            <SearchableDropdownMenu
+                                anchorId="batch-import-user-group-btn"
+                                options={filteredUserGroups}
+                                selectedId={userGroupId}
+                                search={userGroupSearch}
+                                menuWidth={320}
+                                onSearchChange={setUserGroupSearch}
+                                onSelect={(id) => {
+                                    setUserGroupId(id);
+                                    setUserGroupMenuOpen(false);
+                                }}
+                                onClose={() => setUserGroupMenuOpen(false)}
+                            />
+                        )}
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            {t('Billing Type')} *
+                        </label>
+                        <button
+                            type="button"
+                            ref={billingTypeBtnRef}
+                            onClick={() => setBillingTypeMenuOpen(!billingTypeMenuOpen)}
+                            className={inputClassName + ' text-left flex items-center justify-between'}
+                        >
+                            <span>
+                                {BILLING_TYPE_OPTIONS.find((o) => o.value === billingType.toString())?.label}
+                            </span>
+                            <Icon name="expand_more" size={18} className="text-gray-400" />
+                        </button>
+                        {billingTypeMenuOpen && (
+                            <DropdownPortal
+                                anchorRef={billingTypeBtnRef}
+                                options={BILLING_TYPE_OPTIONS}
+                                selected={billingType.toString()}
+                                onSelect={(val) => {
+                                    setBillingType(Number(val));
+                                    setBillingTypeMenuOpen(false);
+                                }}
+                                onClose={() => setBillingTypeMenuOpen(false)}
+                            />
+                        )}
+                        {billingType === 2 && (
+                            <p className="mt-2 text-xs text-slate-500 dark:text-text-secondary">
+                                {t('Token prices will be loaded from model reference data automatically')}
+                            </p>
+                        )}
+                    </div>
+                </div>
+                <div className="px-6 py-4 border-t border-gray-200 dark:border-border-dark flex justify-end gap-3">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-gray-100 dark:bg-background-dark rounded-lg hover:bg-gray-200 dark:hover:bg-border-dark transition-colors"
+                    >
+                        {t('Cancel')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                        className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
+                    >
+                        {submitting ? t('Importing...') : t('Import')}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function buildFormData(rule?: BillingRule): BillingRuleFormData {
     if (!rule) {
         return {
@@ -909,6 +1126,9 @@ export function AdminBillingRules() {
     const canLoadModelReferencePrice = hasPermission(
         buildAdminPermissionKey('GET', '/v0/admin/model-references/price')
     );
+    const canBatchImport = hasPermission(
+        buildAdminPermissionKey('POST', '/v0/admin/billing-rules/batch-import')
+    );
 
     const [rules, setRules] = useState<BillingRule[]>([]);
     const [loading, setLoading] = useState(true);
@@ -918,7 +1138,20 @@ export function AdminBillingRules() {
     const [submitting, setSubmitting] = useState(false);
     const [authGroups, setAuthGroups] = useState<GroupOption[]>([]);
     const [userGroups, setUserGroups] = useState<GroupOption[]>([]);
+    const [batchImportOpen, setBatchImportOpen] = useState(false);
+    const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
+    const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const locale = i18n.language === 'zh-CN' ? 'zh-CN' : 'en-US';
+
+    const showToast = useCallback((message: string) => {
+        if (toastTimeoutRef.current) {
+            clearTimeout(toastTimeoutRef.current);
+        }
+        setToast({ show: true, message });
+        toastTimeoutRef.current = setTimeout(() => {
+            setToast({ show: false, message: '' });
+        }, 3000);
+    }, []);
 
     const fetchRules = useCallback(() => {
         if (!canListRules) {
@@ -1052,6 +1285,33 @@ export function AdminBillingRules() {
         }
     };
 
+    const handleBatchImport = async (authGroupId: number, userGroupId: number, billingType: number) => {
+        if (!canBatchImport) {
+            return;
+        }
+        setSubmitting(true);
+        try {
+            const res = await apiFetchAdmin<{ created: number; updated: number }>(
+                '/v0/admin/billing-rules/batch-import',
+                {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        auth_group_id: authGroupId,
+                        user_group_id: userGroupId,
+                        billing_type: billingType,
+                    }),
+                }
+            );
+            setBatchImportOpen(false);
+            fetchRules();
+            showToast(t('Import completed: {{created}} created, {{updated}} updated', { created: res.created, updated: res.updated }));
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const pageInfo = useMemo(() => {
         if (!rules.length) return t('No billing rules found');
         const start = (currentPage - 1) * PAGE_SIZE + 1;
@@ -1075,7 +1335,16 @@ export function AdminBillingRules() {
         <AdminDashboardLayout title={t('Billing Rules')} subtitle={t('Manage pricing rules for usage')}>
             <div className="space-y-6">
                 {canCreateRule && (
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
+                        {canBatchImport && (
+                            <button
+                                onClick={() => setBatchImportOpen(true)}
+                                className="flex items-center gap-2 px-4 py-2 border border-primary text-primary bg-white dark:bg-surface-dark rounded-lg hover:bg-primary/10 transition-colors font-medium"
+                            >
+                                <Icon name="download" size={18} />
+                                {t('Import All Models')}
+                            </button>
+                        )}
                         <button
                             onClick={() => setCreateOpen(true)}
                             className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium"
@@ -1284,6 +1553,31 @@ export function AdminBillingRules() {
                     onClose={() => setEditRule(null)}
                     onSubmit={handleUpdate}
                 />
+            )}
+            {batchImportOpen && (
+                <BatchImportModal
+                    authGroups={authGroups}
+                    userGroups={userGroups}
+                    submitting={submitting}
+                    onClose={() => setBatchImportOpen(false)}
+                    onSubmit={handleBatchImport}
+                />
+            )}
+            {toast.show && (
+                <div className="fixed top-4 right-4 z-[9999] animate-slide-in-right">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 dark:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 rounded-lg shadow-lg">
+                        <Icon name="check_circle" size={20} className="text-emerald-500" />
+                        <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                            {toast.message}
+                        </span>
+                        <button
+                            onClick={() => setToast({ show: false, message: '' })}
+                            className="inline-flex h-7 w-7 items-center justify-center text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-300 rounded transition-colors"
+                        >
+                            <Icon name="close" size={16} />
+                        </button>
+                    </div>
+                </div>
             )}
         </AdminDashboardLayout>
     );

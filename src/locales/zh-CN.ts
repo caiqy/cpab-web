@@ -793,6 +793,7 @@ const zhCN: Record<string, string> = {
     "Remove": "移除",
     "Selected files": "已选择的文件",
     "Some files failed to import.": "部分文件导入失败。",
+    "New version available": "有新版本可用",
     "Upload": "上传",
     "Uploading...": "正在上传...",
 };

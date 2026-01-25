@@ -5,6 +5,7 @@ import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminP
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../LanguageSwitcher';
 import { useSiteName } from '../../utils/siteName';
+import { VersionUpdateButton } from './VersionUpdateButton';
 
 interface AdminSidebarProps {
     onChangePassword?: () => void;
@@ -189,6 +190,7 @@ export function AdminSidebar({ onChangePassword, onMFA, onLogout }: AdminSidebar
 
             <div className="mt-auto p-6 border-t border-gray-200 dark:border-border-dark">
                 <div className="flex items-center justify-center gap-2">
+                    <VersionUpdateButton />
                     <LanguageSwitcher size="sm" menuDirection="up" menuAlign="left" />
                     {onChangePassword ? (
                         <button
