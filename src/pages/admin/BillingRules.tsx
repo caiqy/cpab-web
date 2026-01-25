@@ -1076,6 +1076,108 @@ function BatchImportModal({
     );
 }
 
+interface InlinePriceEditorProps {
+    value: number | null;
+    canEdit: boolean;
+    onSave: (val: number) => Promise<void>;
+}
+
+function InlinePriceEditor({ value, canEdit, onSave }: InlinePriceEditorProps) {
+    const [editing, setEditing] = useState(false);
+    const [tempValue, setTempValue] = useState('');
+    const [saving, setSaving] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (editing && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [editing]);
+
+    const handleStartEdit = () => {
+        if (!canEdit) return;
+        setTempValue(value === null ? '' : value.toString());
+        setEditing(true);
+    };
+
+    const handleCancel = () => {
+        setEditing(false);
+        setTempValue('');
+    };
+
+    const handleSave = async () => {
+        const num = parseFloat(tempValue);
+        if (isNaN(num) || num < 0) {
+            return;
+        }
+        setSaving(true);
+        try {
+            await onSave(num);
+            setEditing(false);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleSave();
+        } else if (e.key === 'Escape') {
+            handleCancel();
+        }
+    };
+
+    if (editing) {
+        return (
+            <div className="flex items-center gap-1 min-w-[140px]">
+                <input
+                    ref={inputRef}
+                    type="text"
+                    inputMode="decimal"
+                    className="w-20 px-1 py-0.5 text-xs bg-white dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded focus:outline-none focus:border-primary"
+                    value={tempValue}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^\d*\.?\d*$/.test(val)) {
+                            setTempValue(val);
+                        }
+                    }}
+                    onKeyDown={handleKeyDown}
+                    disabled={saving}
+                />
+                <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="p-0.5 text-emerald-600 hover:text-emerald-700 dark:text-emerald-500 dark:hover:text-emerald-400 rounded transition-colors"
+                >
+                    <Icon name="check" size={16} />
+                </button>
+                <button
+                    onClick={handleCancel}
+                    disabled={saving}
+                    className="p-0.5 text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 rounded transition-colors"
+                >
+                    <Icon name="close" size={16} />
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div
+            onClick={handleStartEdit}
+            className={`cursor-pointer hover:text-primary transition-colors ${
+                !canEdit ? 'cursor-default hover:text-inherit' : ''
+            }`}
+            title={canEdit ? 'Click to edit' : ''}
+        >
+            {formatPrice(value)}
+        </div>
+    );
+}
+
 function buildFormData(rule?: BillingRule): BillingRuleFormData {
     if (!rule) {
         return {
@@ -1312,6 +1414,23 @@ export function AdminBillingRules() {
         }
     };
 
+    const handleInlineUpdate = async (rule: BillingRule, field: string, value: number) => {
+        try {
+            await apiFetchAdmin(`/v0/admin/billing-rules/${rule.id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ [field]: value }),
+            });
+            setRules((prev) =>
+                prev.map((item) =>
+                    item.id === rule.id ? { ...item, [field]: value } : item
+                )
+            );
+            showToast(t('Updated successfully'));
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     const pageInfo = useMemo(() => {
         if (!rules.length) return t('No billing rules found');
         const start = (currentPage - 1) * PAGE_SIZE + 1;
@@ -1422,19 +1541,39 @@ export function AdminBillingRules() {
                                             {t(BILLING_TYPE_LABELS[rule.billing_type] || 'Unknown')}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white font-mono text-xs">
-                                            {formatPrice(rule.price_per_request)}
+                                            <InlinePriceEditor
+                                                value={rule.price_per_request}
+                                                canEdit={canUpdateRule && rule.billing_type === 1}
+                                                onSave={(val) => handleInlineUpdate(rule, 'price_per_request', val)}
+                                            />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white font-mono text-xs">
-                                            {formatPrice(rule.price_input_token)}
+                                            <InlinePriceEditor
+                                                value={rule.price_input_token}
+                                                canEdit={canUpdateRule && rule.billing_type === 2}
+                                                onSave={(val) => handleInlineUpdate(rule, 'price_input_token', val)}
+                                            />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white font-mono text-xs">
-                                            {formatPrice(rule.price_output_token)}
+                                            <InlinePriceEditor
+                                                value={rule.price_output_token}
+                                                canEdit={canUpdateRule && rule.billing_type === 2}
+                                                onSave={(val) => handleInlineUpdate(rule, 'price_output_token', val)}
+                                            />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white font-mono text-xs">
-                                            {formatPrice(rule.price_cache_create_token)}
+                                            <InlinePriceEditor
+                                                value={rule.price_cache_create_token}
+                                                canEdit={canUpdateRule && rule.billing_type === 2}
+                                                onSave={(val) => handleInlineUpdate(rule, 'price_cache_create_token', val)}
+                                            />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white font-mono text-xs">
-                                            {formatPrice(rule.price_cache_read_token)}
+                                            <InlinePriceEditor
+                                                value={rule.price_cache_read_token}
+                                                canEdit={canUpdateRule && rule.billing_type === 2}
+                                                onSave={(val) => handleInlineUpdate(rule, 'price_cache_read_token', val)}
+                                            />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
