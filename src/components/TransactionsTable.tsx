@@ -60,7 +60,6 @@ export function TransactionsTable() {
 						<tr>
 							<th className="px-6 py-4">{t('Status')}</th>
 							<th className="px-6 py-4">{t('Timestamp')}</th>
-							<th className="px-6 py-4">{t('Provider')}</th>
 							<th className="px-6 py-4">{t('Model')}</th>
 							<th className="px-6 py-4">{t('Request Time')}</th>
 							<th className="px-6 py-4 text-right">{t('Input')}</th>
@@ -73,14 +72,14 @@ export function TransactionsTable() {
 						{loading ? (
 							[...Array(5)].map((_, i) => (
 								<tr key={i}>
-									<td colSpan={9} className="px-6 py-4">
+									<td colSpan={8} className="px-6 py-4">
 										<div className="animate-pulse h-4 bg-slate-200 dark:bg-border-dark rounded"></div>
 									</td>
 								</tr>
 							))
 						) : transactions.length === 0 ? (
 							<tr>
-								<td colSpan={9} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
+								<td colSpan={8} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
 									{t('No transactions yet')}
 								</td>
 							</tr>
@@ -103,9 +102,6 @@ export function TransactionsTable() {
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono text-xs">
 										{tx.timestamp}
-									</td>
-									<td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary">
-										{tx.provider || '-'}
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white font-medium">
 										{tx.model}
