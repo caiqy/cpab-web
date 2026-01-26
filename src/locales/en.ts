@@ -603,6 +603,7 @@ const en: Record<string, string> = {
     "Save": "Save",
     "Search by ID, username or email...": "Search by ID, username or email...",
     "Search by key...": "Search by key...",
+    "Search by name or key...": "Search by name or key...",
     "Search by name or ID...": "Search by name or ID...",
     "Search by redeemed username...": "Search by redeemed username...",
     "Search by username": "Search by username",

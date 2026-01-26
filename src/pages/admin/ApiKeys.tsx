@@ -269,11 +269,13 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
             setError(t('Type is required.'));
             return;
         }
-        if (provider === 'openai-compatibility') {
-            if (!name.trim()) {
-                setError(t('Provider name is required.'));
-                return;
-            }
+        const normalizedName = name.trim();
+        const isOpenAICompat = provider === 'openai-compatibility';
+        if (!normalizedName) {
+            setError(t(isOpenAICompat ? 'Provider name is required.' : 'Name is required.'));
+            return;
+        }
+        if (isOpenAICompat) {
             if (!baseURL.trim()) {
                 setError(t('Base URL is required.'));
                 return;
@@ -312,7 +314,7 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
 
         const payload = {
             provider,
-            name: name.trim(),
+            name: normalizedName,
             priority,
             api_key: apiKey.trim(),
             prefix: prefix.trim(),
@@ -394,20 +396,24 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
                         </div>
                     </div>
 
-                    {provider === 'openai-compatibility' && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                                {t('Provider Name')}
-                            </label>
-                            <input
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder={t('e.g. openrouter')}
-                                className="w-full px-4 py-2.5 text-sm bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg text-slate-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                            />
-                        </div>
-                    )}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                            {provider === 'openai-compatibility' ? t('Provider Name') : t('Name')}
+                        </label>
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            required
+                            maxLength={64}
+                            placeholder={
+                                provider === 'openai-compatibility'
+                                    ? t('e.g. openrouter')
+                                    : t('e.g., Production-Backend')
+                            }
+                            className="w-full px-4 py-2.5 text-sm bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg text-slate-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
+                    </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
@@ -880,7 +886,9 @@ export function AdminApiKeys() {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-slate-900 dark:text-white">
-                                                {item.name || '—'}
+                                                {item.provider === 'openai-compatibility'
+                                                    ? item.name || '—'
+                                                    : item.name || maskKey(item.api_key || '')}
                                             </td>
                                             <td className="px-6 py-4 font-mono text-slate-700 dark:text-gray-300">
                                                 {item.priority}

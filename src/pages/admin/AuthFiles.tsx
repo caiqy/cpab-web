@@ -248,6 +248,7 @@ function MultiGroupDropdownMenu({
 
 interface AuthFile {
     id: number;
+    name?: string;
     key: string;
     proxy_url?: string | null;
     priority: number;
@@ -542,6 +543,7 @@ export function AdminAuthFiles() {
 
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editingFile, setEditingFile] = useState<AuthFile | null>(null);
+    const [editName, setEditName] = useState('');
     const [editKey, setEditKey] = useState('');
     const [editGroupIds, setEditGroupIds] = useState<number[]>([]);
     const [editIsAvailable, setEditIsAvailable] = useState(true);
@@ -935,6 +937,7 @@ export function AdminAuthFiles() {
             return;
         }
         setEditingFile(file);
+        setEditName((file.name || file.key) ?? '');
         setEditKey(file.key);
         setEditGroupIds(normalizeGroupIds(file.auth_group_id || []));
         setEditIsAvailable(file.is_available);
@@ -948,6 +951,10 @@ export function AdminAuthFiles() {
         if (!editingFile || !canUpdateAuthFiles) return;
         setEditSaving(true);
         try {
+            const trimmedName = editName.trim();
+            if (!trimmedName) {
+                return;
+            }
             const proxyUrl = editProxyUrl.trim();
             const normalizedEditGroupIds = normalizeGroupIds(editGroupIds);
             const parsedRateLimit = Number.parseInt(editRateLimit, 10);
@@ -955,6 +962,7 @@ export function AdminAuthFiles() {
             const parsedPriority = Number.parseInt(editPriority, 10);
             const priority = Number.isNaN(parsedPriority) ? 0 : parsedPriority;
             const payload: Record<string, unknown> = {
+                name: trimmedName,
                 key: editKey,
                 is_available: editIsAvailable,
                 proxy_url: proxyUrl,
@@ -975,6 +983,7 @@ export function AdminAuthFiles() {
                     item.id === editingFile.id
                         ? {
                             ...item,
+                            name: trimmedName,
                             key: editKey,
                             auth_group_id: normalizedEditGroupIds,
                             auth_group: selectedGroups,
@@ -1002,6 +1011,7 @@ export function AdminAuthFiles() {
     const handleEditClose = () => {
         setEditModalOpen(false);
         setEditingFile(null);
+        setEditName('');
         setEditProxyUrl('');
         setEditRateLimit('0');
         setEditPriority('0');
@@ -1677,7 +1687,7 @@ export function AdminAuthFiles() {
                             </div>
                             <input
                                 className="block w-full p-2.5 pl-10 text-sm text-slate-900 dark:text-white bg-gray-50 dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded-lg focus:ring-primary focus:border-primary placeholder-gray-400 dark:placeholder-gray-500"
-                                placeholder={t('Search by key...')}
+                                placeholder={t('Search by name or key...')}
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
@@ -1784,6 +1794,7 @@ export function AdminAuthFiles() {
                                             title={t('Select all')}
                                         />
                                     </th>
+                                    <th className="px-6 py-4 font-semibold tracking-wider">{t('Name')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Key')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Type')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Auth Group')}</th>
@@ -1804,13 +1815,13 @@ export function AdminAuthFiles() {
                             <tbody className="divide-y divide-gray-200 dark:divide-border-dark">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={10} className="px-6 py-12 text-center">
+                                        <td colSpan={11} className="px-6 py-12 text-center">
                                             {t('Loading...')}
                                         </td>
                                     </tr>
                                 ) : authFiles.length === 0 ? (
                                     <tr>
-                                        <td colSpan={10} className="px-6 py-12 text-center">
+                                        <td colSpan={11} className="px-6 py-12 text-center">
                                             {t('No auth files found')}
                                         </td>
                                     </tr>
@@ -1837,6 +1848,12 @@ export function AdminAuthFiles() {
                                                     }}
                                                     title={t('Select row')}
                                                 />
+                                            </td>
+                                            <td
+                                                className="px-6 py-4 text-slate-900 dark:text-white font-medium"
+                                                title={file.name || file.key}
+                                            >
+                                                {file.name || file.key}
                                             </td>
                                             <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">
                                                 {file.key}
@@ -2536,6 +2553,18 @@ export function AdminAuthFiles() {
                         <div className="p-6 space-y-4 flex-1 overflow-y-auto">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    {t('Name')}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    maxLength={64}
+                                    className="block w-full p-2.5 text-sm text-slate-900 dark:text-white bg-gray-50 dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded-lg focus:ring-primary focus:border-primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     {t('Key')}
                                 </label>
                                 <input
@@ -2654,7 +2683,7 @@ export function AdminAuthFiles() {
                         <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-border-dark shrink-0">
                             <button
                                 onClick={handleEditSave}
-                                disabled={editSaving || !editKey.trim()}
+                                disabled={editSaving || !editName.trim() || !editKey.trim()}
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {editSaving ? t('Saving...') : t('Save')}

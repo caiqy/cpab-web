@@ -607,6 +607,7 @@ const zhCN: Record<string, string> = {
     "Save": "保存",
     "Search by ID, username or email...": "按 ID、用户名或邮箱搜索...",
     "Search by key...": "按密钥搜索...",
+    "Search by name or key...": "按名称或密钥搜索...",
     "Search by name or ID...": "按名称或 ID 搜索...",
     "Search by redeemed username...": "按兑换用户名搜索...",
     "Search by username": "按用户名搜索",
