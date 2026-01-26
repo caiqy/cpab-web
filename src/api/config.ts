@@ -1,3 +1,5 @@
+import i18n from '../i18n';
+
 export const API_BASE_URL =
     typeof window === 'undefined'
         ? ''
@@ -9,6 +11,31 @@ export const TOKEN_KEY_FRONT = 'front_token';
 export const TOKEN_KEY_ADMIN = 'admin_token';
 export const USER_KEY_FRONT = 'front_user';
 export const USER_KEY_ADMIN = 'admin_user';
+
+export class APIRequestError extends Error {
+    status: number;
+    code?: string;
+    payload?: unknown;
+
+    constructor(message: string, status: number, code?: string, payload?: unknown) {
+        super(message);
+        this.name = 'APIRequestError';
+        this.status = status;
+        this.code = code;
+        this.payload = payload;
+    }
+}
+
+function resolveAPIErrorMessage(errorData: any, status: number): string {
+    const code = typeof errorData?.code === 'string' ? errorData.code : undefined;
+    if (code === 'daily_max_usage_exceeded') {
+        return i18n.t('Daily max prepaid spend exceeded');
+    }
+    if (typeof errorData?.error === 'string' && errorData.error.trim()) {
+        return errorData.error;
+    }
+    return `Request failed with status ${status}`;
+}
 
 export async function apiFetchFront<T>(
     endpoint: string,
@@ -41,7 +68,9 @@ export async function apiFetchFront<T>(
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Request failed with status ${response.status}`);
+        const message = resolveAPIErrorMessage(errorData, response.status);
+        const code = typeof (errorData as any)?.code === 'string' ? (errorData as any).code : undefined;
+        throw new APIRequestError(message, response.status, code, errorData);
     }
 
     if (response.status === 204 || response.headers.get('content-length') === '0') {
@@ -82,7 +111,9 @@ export async function apiFetchAdmin<T>(
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Request failed with status ${response.status}`);
+        const message = resolveAPIErrorMessage(errorData, response.status);
+        const code = typeof (errorData as any)?.code === 'string' ? (errorData as any).code : undefined;
+        throw new APIRequestError(message, response.status, code, errorData);
     }
 
     if (response.status === 204 || response.headers.get('content-length') === '0') {

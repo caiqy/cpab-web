@@ -205,21 +205,28 @@ function CreateUserModal({
         setError(null);
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError(null);
+	    const handleSubmit = async (e: React.FormEvent) => {
+	        e.preventDefault();
+	        setLoading(true);
+	        setError(null);
 
-        try {
-            const response = await apiFetchAdmin<{ id: number; username: string; email: string; rate_limit: number }>('/v0/admin/users', {
-                method: 'POST',
-                body: JSON.stringify({
-                    username: formData.username.trim(),
-                    email: formData.email.trim(),
-                    password: formData.password,
-                    rate_limit: Number.parseInt(formData.rate_limit, 10) || 0,
-                }),
-            });
+	        try {
+	            const createData: Record<string, unknown> = {
+	                username: formData.username.trim(),
+	                email: formData.email.trim(),
+	                password: formData.password,
+	                daily_max_usage: Number.parseFloat(formData.daily_max_usage) || 0,
+	                rate_limit: Number.parseInt(formData.rate_limit, 10) || 0,
+	                disabled: formData.disabled,
+	            };
+	            if (canAssignGroup) {
+	                createData.user_group_id = formData.user_group_id;
+	            }
+
+	            const response = await apiFetchAdmin<{ id: number; username: string; email: string; rate_limit: number }>('/v0/admin/users', {
+	                method: 'POST',
+	                body: JSON.stringify(createData),
+	            });
 
             const newUser: User = {
                 id: response.id,
