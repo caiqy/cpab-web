@@ -47,6 +47,7 @@ const en: Record<string, string> = {
     "Available models and pricing based on current configuration": "Available models and pricing based on current configuration",
     "Avg Tokens": "Avg Tokens",
     "Avg. Request Time": "Avg. Request Time",
+    "Request Time": "Request Time",
     "Back": "Back",
     "Balance": "Balance",
     "Billed per API call.": "Billed per API call.",

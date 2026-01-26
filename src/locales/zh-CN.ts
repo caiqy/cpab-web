@@ -47,6 +47,7 @@ const zhCN: Record<string, string> = {
     "Available models and pricing based on current configuration": "基于当前配置的可用模型与价格",
     "Avg Tokens": "平均 Token",
     "Avg. Request Time": "平均请求耗时",
+    "Request Time": "读取耗时",
     "Back": "返回",
     "Balance": "余额",
     "Billed per API call.": "按 API 调用计费。",
