@@ -59,15 +59,15 @@ export function AdminTransactionsTable() {
 				<table className="w-full text-left text-sm">
 					<thead className="bg-slate-50 dark:bg-background-dark text-slate-500 dark:text-text-secondary uppercase text-xs font-semibold">
 						<tr>
-							<th className="px-6 py-4">{t('Username')}</th>
+							<th className="px-6 py-4 min-w-56">{t('Username')}</th>
 							<th className="px-6 py-4">{t('Status')}</th>
 							<th className="px-6 py-4">{t('Timestamp')}</th>
 							<th className="px-6 py-4">{t('Provider')}</th>
 							<th className="px-6 py-4">{t('Model')}</th>
 							<th className="px-6 py-4">{t('Request Time')}</th>
-							<th className="px-6 py-4 text-right">{t('Input Tokens')}</th>
-							<th className="px-6 py-4 text-right">{t('Cached Tokens')}</th>
-							<th className="px-6 py-4 text-right">{t('Output Tokens')}</th>
+							<th className="px-6 py-4 text-right">{t('Input')}</th>
+							<th className="px-6 py-4 text-right">{t('Cached')}</th>
+							<th className="px-6 py-4 text-right">{t('Output')}</th>
 							<th className="px-6 py-4">{t('Cost')}</th>
 						</tr>
 					</thead>
@@ -92,7 +92,7 @@ export function AdminTransactionsTable() {
 									key={index}
 									className="hover:bg-slate-50 dark:hover:bg-background-dark/30 transition-colors"
 								>
-									<td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white">
+									<td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white min-w-56">
 										{tx.username || '-'}
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap">
@@ -119,7 +119,7 @@ export function AdminTransactionsTable() {
 										{formatSecondsFromMs(tx.request_time_ms)}
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap text-right text-slate-600 dark:text-text-secondary font-mono">
-										{formatTokens(tx.input_tokens ?? 0)}
+										{formatTokens(Math.max(0, (tx.input_tokens ?? 0) - (tx.cached_tokens ?? 0)))}
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap text-right text-slate-600 dark:text-text-secondary font-mono">
 										{formatTokens(tx.cached_tokens ?? 0)}
