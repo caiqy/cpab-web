@@ -64,10 +64,14 @@ function KPICard({
 interface KPIData {
     total_requests: number;
     requests_trend: number;
+    today_tokens: number;
+    today_tokens_trend: number;
     avg_tokens: number;
     avg_tokens_trend: number;
     success_rate: number;
     success_rate_trend: number;
+    today_cost_micros: number;
+    today_cost_trend: number;
     mtd_cost_micros: number;
     cost_trend: number;
 }
@@ -131,19 +135,19 @@ export function KPICards() {
             icon: 'token',
             iconBgClass: 'bg-indigo-50 dark:bg-indigo-500/10',
             iconTextClass: 'text-indigo-500',
-            label: t('Avg Tokens'),
-            value: formatNumber(Math.round(data?.avg_tokens ?? 0)),
-            trend: formatTrend(data?.avg_tokens_trend ?? 0),
-            trendType: getTrendType(data?.avg_tokens_trend ?? 0),
+            label: t('Today Tokens'),
+            value: formatNumber(data?.today_tokens ?? 0),
+            trend: formatTrend(data?.today_tokens_trend ?? 0),
+            trendType: getTrendType(data?.today_tokens_trend ?? 0),
         },
         {
-            icon: 'check_circle',
+            icon: 'paid',
             iconBgClass: 'bg-emerald-50 dark:bg-emerald-500/10',
             iconTextClass: 'text-emerald-500',
-            label: t('Success Rate'),
-            value: `${(data?.success_rate ?? 100).toFixed(2)}%`,
-            trend: formatTrend(data?.success_rate_trend ?? 0),
-            trendType: getTrendType(data?.success_rate_trend ?? 0),
+            label: t('Today Cost'),
+            value: `$${((data?.today_cost_micros ?? 0) / 1000000).toFixed(2)}`,
+            trend: formatTrend(data?.today_cost_trend ?? 0),
+            trendType: getTrendType(-(data?.today_cost_trend ?? 0)),
         },
         {
             icon: 'attach_money',
