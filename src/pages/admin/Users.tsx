@@ -16,6 +16,7 @@ interface User {
     user_group_id: number[];
     bill_user_group_id: number[];
     daily_max_usage: number;
+    today_cost_micros?: number;
     rate_limit: number;
     active: boolean;
     disabled: boolean;
@@ -235,6 +236,7 @@ function CreateUserModal({
                 user_group_id: formData.user_group_id,
                 bill_user_group_id: [],
                 daily_max_usage: Number.parseFloat(formData.daily_max_usage) || 0,
+                today_cost_micros: 0,
                 rate_limit: response.rate_limit,
                 active: true,
                 disabled: formData.disabled,
@@ -1261,6 +1263,7 @@ export function AdminUsers() {
                                     <th className="px-6 py-4">{t('Username')}</th>
                                     <th className="px-6 py-4">{t('Email')}</th>
                                     <th className="px-6 py-4">{t('Daily Max Usage')}</th>
+                                    <th className="px-6 py-4">{t('Today Spend')}</th>
                                     <th className="px-6 py-4">{t('Rate limit')}</th>
                                     <th className="px-6 py-4">{t('User Group')}</th>
                                     <th className="px-6 py-4">{t('Bill User Groups')}</th>
@@ -1279,14 +1282,14 @@ export function AdminUsers() {
                             {loading ? (
                                 [...Array(5)].map((_, i) => (
                                     <tr key={i}>
-                                        <td colSpan={10} className="px-6 py-4">
+                                        <td colSpan={11} className="px-6 py-4">
                                             <div className="animate-pulse h-4 bg-slate-200 dark:bg-border-dark rounded"></div>
                                         </td>
                                     </tr>
                                 ))
                             ) : paginatedUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={10} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
+                                    <td colSpan={11} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
                                         {searchQuery ? t('No users found') : t('No users yet')}
                                     </td>
                                 </tr>
@@ -1307,6 +1310,9 @@ export function AdminUsers() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono">
                                             ${user.daily_max_usage.toFixed(2)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono">
+                                            ${((user.today_cost_micros ?? 0) / 1000000).toFixed(2)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono">
                                             {user.rate_limit.toLocaleString()}
