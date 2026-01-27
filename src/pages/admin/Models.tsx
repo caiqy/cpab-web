@@ -1368,6 +1368,7 @@ function PayloadRulesModal({
             alert(t('Permission denied'));
             return;
         }
+        let hasInvalidValue = false;
         const params = rule.paramEntries
             .map((entry) => {
                 const key = entry.path.trim();
@@ -1379,12 +1380,14 @@ function PayloadRulesModal({
                         value = trimmed === '' ? null : JSON.parse(trimmed);
                     } catch {
                         alert(t('Invalid JSON for path "{{path}}"', { path: key }));
+                        hasInvalidValue = true;
                         return null;
                     }
                 } else if (entry.valueType === 'number') {
                     const num = Number(trimmed);
                     if (!Number.isFinite(num)) {
                         alert(t('Invalid number for path "{{path}}"', { path: key }));
+                        hasInvalidValue = true;
                         return null;
                     }
                     value = num;
@@ -1394,6 +1397,7 @@ function PayloadRulesModal({
                     else if (lower === 'false') value = false;
                     else {
                         alert(t('Invalid boolean for path "{{path}}"', { path: key }));
+                        hasInvalidValue = true;
                         return null;
                     }
                 } else {
@@ -1407,6 +1411,10 @@ function PayloadRulesModal({
                 };
             })
             .filter((item) => item !== null);
+
+        if (hasInvalidValue) {
+            return;
+        }
 
         const body = {
             params,
