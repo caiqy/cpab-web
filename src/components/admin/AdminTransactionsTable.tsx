@@ -39,7 +39,7 @@ export function AdminTransactionsTable() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(15);
+    const [pageSize, setPageSize] = useState(10);
     const [loading, setLoading] = useState(true);
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -173,12 +173,12 @@ export function AdminTransactionsTable() {
 							value={pageSize}
 							onChange={(e) => {
 								const next = Number.parseInt(e.target.value, 10);
-								setPageSize(Number.isFinite(next) && next > 0 ? next : 15);
+								setPageSize(Number.isFinite(next) && next > 0 ? next : 10);
 								setPage(1);
 							}}
 							className="h-9 px-3 text-sm bg-gray-50 dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded-lg text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
 						>
-							{[15, 30, 50, 100].map((n) => (
+							{[10, 15, 30, 50, 100].map((n) => (
 								<option key={n} value={n}>
 									{n}
 								</option>
