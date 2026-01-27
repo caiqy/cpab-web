@@ -64,6 +64,14 @@ function KPICard({
 interface KPIData {
     total_requests: number;
     requests_trend: number;
+    today_active_users: number;
+    active_users_trend: number;
+    today_tokens: number;
+    today_tokens_trend: number;
+    today_cached_tokens: number;
+    cached_tokens_trend: number;
+    today_cost_micros: number;
+    today_cost_trend: number;
     avg_request_time_ms: number;
     request_time_trend: number;
     success_rate: number;
@@ -107,17 +115,24 @@ export function AdminKPICards() {
 
     if (loading) {
         return (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                {[...Array(4)].map((_, i) => (
-                    <div key={i} className="bg-white dark:bg-surface-dark rounded-xl p-6 border border-gray-200 dark:border-border-dark shadow-sm animate-pulse">
-                        <div className="h-20"></div>
+            <div className="space-y-4">
+                {[...Array(2)].map((_, row) => (
+                    <div key={row} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                        {[...Array(4)].map((_, i) => (
+                            <div
+                                key={`${row}-${i}`}
+                                className="bg-white dark:bg-surface-dark rounded-xl p-6 border border-gray-200 dark:border-border-dark shadow-sm animate-pulse"
+                            >
+                                <div className="h-20"></div>
+                            </div>
+                        ))}
                     </div>
                 ))}
             </div>
         );
     }
 
-    const cards: KPICardProps[] = [
+    const topCards: KPICardProps[] = [
         {
             icon: 'data_usage',
             iconBgClass: 'bg-blue-50 dark:bg-blue-500/10',
@@ -156,11 +171,57 @@ export function AdminKPICards() {
         },
     ];
 
+    const bottomCards: KPICardProps[] = [
+        {
+            icon: 'group',
+            iconBgClass: 'bg-slate-50 dark:bg-slate-500/10',
+            iconTextClass: 'text-slate-700 dark:text-slate-200',
+            label: t('Today Active Users'),
+            value: formatNumber(data?.today_active_users ?? 0),
+            trend: formatTrend(data?.active_users_trend ?? 0),
+            trendType: getTrendType(data?.active_users_trend ?? 0),
+        },
+        {
+            icon: 'token',
+            iconBgClass: 'bg-indigo-50 dark:bg-indigo-500/10',
+            iconTextClass: 'text-indigo-500',
+            label: t('Today Tokens'),
+            value: formatNumber(data?.today_tokens ?? 0),
+            trend: formatTrend(data?.today_tokens_trend ?? 0),
+            trendType: getTrendType(data?.today_tokens_trend ?? 0),
+        },
+        {
+            icon: 'cached',
+            iconBgClass: 'bg-blue-50 dark:bg-blue-500/10',
+            iconTextClass: 'text-primary',
+            label: t('Today Cached Tokens'),
+            value: formatNumber(data?.today_cached_tokens ?? 0),
+            trend: formatTrend(data?.cached_tokens_trend ?? 0),
+            trendType: getTrendType(data?.cached_tokens_trend ?? 0),
+        },
+        {
+            icon: 'paid',
+            iconBgClass: 'bg-emerald-50 dark:bg-emerald-500/10',
+            iconTextClass: 'text-emerald-500',
+            label: t('Today Cost'),
+            value: `$${((data?.today_cost_micros ?? 0) / 1000000).toFixed(2)}`,
+            trend: formatTrend(data?.today_cost_trend ?? 0),
+            trendType: getTrendType(-(data?.today_cost_trend ?? 0)),
+        },
+    ];
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            {cards.map((card) => (
-                <KPICard key={card.label} {...card} />
-            ))}
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                {topCards.map((card) => (
+                    <KPICard key={card.label} {...card} />
+                ))}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                {bottomCards.map((card) => (
+                    <KPICard key={card.label} {...card} />
+                ))}
+            </div>
         </div>
     );
 }

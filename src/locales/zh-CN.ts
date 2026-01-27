@@ -48,6 +48,8 @@ const zhCN: Record<string, string> = {
     "Avg Tokens": "平均 Token",
     "Today Tokens": "今日 Token",
     "Today Cost": "今日成本",
+    "Today Active Users": "今日活跃用户",
+    "Today Cached Tokens": "今日缓存 Token",
     "Today Spend": "今日消费",
     "Avg. Request Time": "平均请求耗时",
     "Request Time": "读取耗时",

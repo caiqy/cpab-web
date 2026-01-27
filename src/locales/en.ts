@@ -48,6 +48,8 @@ const en: Record<string, string> = {
     "Avg Tokens": "Avg Tokens",
     "Today Tokens": "Today Tokens",
     "Today Cost": "Today Cost",
+    "Today Active Users": "Today Active Users",
+    "Today Cached Tokens": "Today Cached Tokens",
     "Today Spend": "Today Spend",
     "Avg. Request Time": "Avg. Request Time",
     "Request Time": "Request Time",
