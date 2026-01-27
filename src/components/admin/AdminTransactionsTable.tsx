@@ -118,7 +118,7 @@ export function AdminTransactionsTable() {
 									key={index}
 									className="hover:bg-slate-50 dark:hover:bg-background-dark/30 transition-colors"
 								>
-									<td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white min-w-56">
+									<td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white">
 										{tx.username || '-'}
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap">
