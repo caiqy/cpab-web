@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api/config';
 import { useTranslation } from 'react-i18next';
+import { Icon } from './Icon';
 
 interface Transaction {
 	status: string;
@@ -17,6 +18,9 @@ interface Transaction {
 
 interface TransactionsData {
     transactions: Transaction[];
+    total: number;
+    page: number;
+    page_size: number;
 }
 
 function formatTokens(tokens: number): string {
@@ -32,14 +36,36 @@ function formatSecondsFromMs(ms: number | null | undefined): string {
 export function TransactionsTable() {
     const { t } = useTranslation();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(15);
     const [loading, setLoading] = useState(true);
 
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
     useEffect(() => {
-        apiFetch<TransactionsData>('/v0/front/dashboard/transactions')
-            .then((res) => setTransactions(res.transactions || []))
+        setLoading(true);
+        const params = new URLSearchParams();
+        params.set('page', page.toString());
+        params.set('page_size', pageSize.toString());
+
+        apiFetch<TransactionsData>(`/v0/front/dashboard/transactions?${params.toString()}`)
+            .then((res) => {
+                setTransactions(res.transactions || []);
+                setTotal(res.total ?? 0);
+            })
             .catch(console.error)
             .finally(() => setLoading(false));
-    }, []);
+    }, [page, pageSize]);
+
+    useEffect(() => {
+        if (page > totalPages) {
+            setPage(totalPages);
+        }
+    }, [page, totalPages]);
+
+    const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+    const to = total === 0 ? 0 : Math.min(page * pageSize, total);
 
     return (
         <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-border-dark shadow-sm overflow-hidden">
@@ -126,6 +152,59 @@ export function TransactionsTable() {
 						)}
 					</tbody>
 				</table>
+			</div>
+
+			<div className="px-6 py-4 border-t border-gray-200 dark:border-border-dark flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+				<div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
+					<div className="flex items-center gap-2">
+						<span className="text-sm text-slate-500 dark:text-text-secondary">
+							{t('Rows per page')}
+						</span>
+						<select
+							value={pageSize}
+							onChange={(e) => {
+								const next = Number.parseInt(e.target.value, 10);
+								setPageSize(Number.isFinite(next) && next > 0 ? next : 15);
+								setPage(1);
+							}}
+							className="h-9 px-3 text-sm bg-gray-50 dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded-lg text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
+						>
+							{[15, 30, 50, 100].map((n) => (
+								<option key={n} value={n}>
+									{n}
+								</option>
+							))}
+						</select>
+					</div>
+
+					<span className="text-sm text-slate-500 dark:text-text-secondary">
+						{t('Showing {{from}} to {{to}} of {{total}} requests', {
+							from,
+							to,
+							total,
+						})}
+					</span>
+				</div>
+
+				<div className="flex items-center gap-2">
+					<button
+						onClick={() => setPage((p) => Math.max(1, p - 1))}
+						disabled={page === 1 || loading}
+						className="p-2 rounded-lg border border-gray-200 dark:border-border-dark text-slate-600 dark:text-text-secondary hover:bg-slate-50 dark:hover:bg-background-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+					>
+						<Icon name="chevron_left" size={18} />
+					</button>
+					<span className="text-sm text-slate-600 dark:text-text-secondary px-3">
+						{t('Page {{current}} of {{total}}', { current: page, total: totalPages })}
+					</span>
+					<button
+						onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+						disabled={page === totalPages || loading}
+						className="p-2 rounded-lg border border-gray-200 dark:border-border-dark text-slate-600 dark:text-text-secondary hover:bg-slate-50 dark:hover:bg-background-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+					>
+						<Icon name="chevron_right" size={18} />
+					</button>
+				</div>
 			</div>
 		</div>
 	);
