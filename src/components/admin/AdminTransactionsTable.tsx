@@ -85,7 +85,7 @@ export function AdminTransactionsTable() {
 				<table className="w-full text-left text-sm">
 					<thead className="bg-slate-50 dark:bg-background-dark text-slate-500 dark:text-text-secondary uppercase text-xs font-semibold">
 						<tr>
-							<th className="px-6 py-4 min-w-56">{t('Username')}</th>
+							<th className="px-6 py-4">{t('Username')}</th>
 							<th className="px-6 py-4">{t('Status')}</th>
 							<th className="px-6 py-4">{t('Timestamp')}</th>
 							<th className="px-6 py-4">{t('Provider')}</th>
