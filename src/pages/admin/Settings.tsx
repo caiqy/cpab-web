@@ -102,6 +102,11 @@ const SETTINGS_CATALOG: SettingDefinition[] = [
         type: 'boolean',
         description: 'Auto assign proxy for new auth and API keys.',
     },
+    {
+        key: 'USAGES_RETENTION_DAYS',
+        type: 'integer',
+        description: 'Retention days for usage records (usages table).',
+    },
 ];
 
 const TYPE_LABELS: Record<SettingType, string> = {
@@ -125,6 +130,7 @@ const SETTING_EXAMPLES: Record<string, string> = {
     RATE_LIMIT_REDIS_PASSWORD: 'password',
     RATE_LIMIT_REDIS_DB: '0',
     RATE_LIMIT_REDIS_PREFIX: 'cpab:rl',
+    USAGES_RETENTION_DAYS: '90',
 };
 
 const POSITIVE_INTEGER_KEYS = new Set<string>([
@@ -134,6 +140,7 @@ const POSITIVE_INTEGER_KEYS = new Set<string>([
 const NON_NEGATIVE_INTEGER_KEYS = new Set<string>([
     'RATE_LIMIT',
     'RATE_LIMIT_REDIS_DB',
+    'USAGES_RETENTION_DAYS',
 ]);
 
 const inputClassName =
