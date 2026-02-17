@@ -570,6 +570,9 @@ export function AdminAuthFiles() {
     const canOpenNewMenu = canRequestAuth || canImportAuthFiles;
     const canBindProxies = canUpdateAuthFiles && canListProxies;
     const canBatchGroup = canUpdateAuthFiles && canListGroups;
+    const canBatchEnable = canSetAvailable;
+    const canBatchDisable = canSetUnavailable;
+    const canBatchDelete = canDeleteAuthFiles;
     const visibleIds = authFiles.map((file) => file.id);
     const anyVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
     const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
@@ -1203,6 +1206,107 @@ export function AdminAuthFiles() {
         });
     };
 
+    const handleBulkSetAvailability = (available: boolean) => {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) {
+            return;
+        }
+        const canBulkAction = available ? canSetAvailable : canSetUnavailable;
+        if (!canBulkAction) {
+            return;
+        }
+        const actionLabel = available ? t('Enable') : t('Disable');
+        setConfirmDialog({
+            title: t('{{action}} Auth Files', { action: actionLabel }),
+            message: t('Are you sure you want to {{action}} {{count}} auth file(s)?', {
+                action: actionLabel,
+                count: ids.length,
+            }),
+            confirmText: actionLabel,
+            danger: !available,
+            onConfirm: async () => {
+                try {
+                    const results = await Promise.allSettled(
+                        ids.map((id) =>
+                            apiFetchAdmin(`/v0/admin/auth-files/${id}/${available ? 'available' : 'unavailable'}`, {
+                                method: 'POST',
+                            })
+                        )
+                    );
+                    const successIds = new Set<number>();
+                    results.forEach((result, index) => {
+                        if (result.status === 'fulfilled') {
+                            successIds.add(ids[index]);
+                        }
+                    });
+                    if (successIds.size > 0) {
+                        setAuthFiles((prev) =>
+                            prev.map((item) =>
+                                successIds.has(item.id)
+                                    ? { ...item, is_available: available }
+                                    : item
+                            )
+                        );
+                    }
+                    const hasFailures = results.some((result) => result.status === 'rejected');
+                    if (!hasFailures) {
+                        setSelectedIds(new Set());
+                    } else {
+                        fetchData();
+                    }
+                } catch (err) {
+                    console.error('Failed to bulk update auth file availability:', err);
+                } finally {
+                    setConfirmDialog(null);
+                }
+            },
+        });
+    };
+
+    const handleBulkDelete = () => {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0 || !canDeleteAuthFiles) {
+            return;
+        }
+        setConfirmDialog({
+            title: t('Delete Auth Files'),
+            message: t('Are you sure you want to delete {{count}} auth file(s)? This action cannot be undone.', {
+                count: ids.length,
+            }),
+            confirmText: t('Delete'),
+            danger: true,
+            onConfirm: async () => {
+                try {
+                    const results = await Promise.allSettled(
+                        ids.map((id) => apiFetchAdmin(`/v0/admin/auth-files/${id}`, { method: 'DELETE' }))
+                    );
+                    const successIds = new Set<number>();
+                    results.forEach((result, index) => {
+                        if (result.status === 'fulfilled') {
+                            successIds.add(ids[index]);
+                        }
+                    });
+                    if (successIds.size > 0) {
+                        setAuthFiles((prev) => prev.filter((item) => !successIds.has(item.id)));
+                        setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            successIds.forEach((id) => next.delete(id));
+                            return next;
+                        });
+                    }
+                    const hasFailures = results.some((result) => result.status === 'rejected');
+                    if (hasFailures) {
+                        fetchData();
+                    }
+                } catch (err) {
+                    console.error('Failed to bulk delete auth files:', err);
+                } finally {
+                    setConfirmDialog(null);
+                }
+            },
+        });
+    };
+
     const stopPolling = useCallback(() => {
         if (pollingRef.current) {
             clearInterval(pollingRef.current);
@@ -1606,8 +1710,49 @@ export function AdminAuthFiles() {
             subtitle={t('Manage authentication groups and their configurations.')}
         >
             <div className="space-y-6">
-                {(canOpenNewMenu || canBindProxies || canBatchGroup) && (
-                    <div className="flex justify-end gap-2">
+                {(canOpenNewMenu || canBindProxies || canBatchGroup || canBatchEnable || canBatchDisable || canBatchDelete) && (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        {selectedCount > 0 ? (
+                            <div className="text-sm text-slate-700 dark:text-text-secondary">
+                                {t('Selected')}: <span className="font-medium text-slate-900 dark:text-white">{selectedCount}</span>
+                            </div>
+                        ) : (
+                            <div />
+                        )}
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                        {canBatchEnable && (
+                            <button
+                                onClick={() => handleBulkSetAvailability(true)}
+                                disabled={selectedCount === 0}
+                                title={t('Bulk enable selected')}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Icon name="toggle_on" size={18} />
+                                {t('Enable')}
+                            </button>
+                        )}
+                        {canBatchDisable && (
+                            <button
+                                onClick={() => handleBulkSetAvailability(false)}
+                                disabled={selectedCount === 0}
+                                title={t('Bulk disable selected')}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Icon name="toggle_off" size={18} />
+                                {t('Disable')}
+                            </button>
+                        )}
+                        {canBatchDelete && (
+                            <button
+                                onClick={handleBulkDelete}
+                                disabled={selectedCount === 0}
+                                title={t('Bulk delete selected')}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Icon name="delete" size={18} />
+                                {t('Delete')}
+                            </button>
+                        )}
                         {canBatchGroup && (
                             <button
                                 onClick={handleOpenBatchGroupModal}
@@ -1642,7 +1787,7 @@ export function AdminAuthFiles() {
                                     className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium"
                                 >
                                     <Icon name="add" size={18} />
-                                    {t('New')}
+                                {t('New')}
                                     <Icon name="expand_more" size={18} />
                                 </button>
                                 {newMenuOpen && (
@@ -1676,6 +1821,7 @@ export function AdminAuthFiles() {
                                 )}
                             </div>
                         )}
+                        </div>
                     </div>
                 )}
 
