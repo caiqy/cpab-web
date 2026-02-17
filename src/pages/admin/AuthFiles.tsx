@@ -1889,11 +1889,11 @@ export function AdminAuthFiles() {
                                             <td className="px-6 py-4">
                                                 {file.is_available ? (
                                                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800">
-                                                        {t('Available')}
+                                                        {t('Enabled')}
                                                     </span>
                                                 ) : (
                                                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-100 dark:border-red-800">
-                                                        {t('Unavailable')}
+                                                        {t('Disabled')}
                                                     </span>
                                                 )}
                                             </td>
@@ -1930,7 +1930,7 @@ export function AdminAuthFiles() {
                                                                     ? 'text-gray-400 hover:text-amber-500 hover:bg-gray-100 dark:hover:bg-background-dark'
                                                                     : 'text-gray-400 hover:text-emerald-500 hover:bg-gray-100 dark:hover:bg-background-dark'
                                                             }`}
-                                                            title={file.is_available ? t('Set Unavailable') : t('Set Available')}
+                                                            title={file.is_available ? t('Disable') : t('Enable')}
                                                         >
                                                             <Icon
                                                                 name={file.is_available ? 'toggle_off' : 'toggle_on'}
@@ -2665,7 +2665,7 @@ export function AdminAuthFiles() {
                                             onChange={() => setEditIsAvailable(true)}
                                             className="w-4 h-4 text-primary focus:ring-primary"
                                         />
-                                        <span className="text-sm text-slate-900 dark:text-white">{t('Available')}</span>
+                                        <span className="text-sm text-slate-900 dark:text-white">{t('Enabled')}</span>
                                     </label>
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -2675,7 +2675,7 @@ export function AdminAuthFiles() {
                                             onChange={() => setEditIsAvailable(false)}
                                             className="w-4 h-4 text-primary focus:ring-primary"
                                         />
-                                        <span className="text-sm text-slate-900 dark:text-white">{t('Unavailable')}</span>
+                                        <span className="text-sm text-slate-900 dark:text-white">{t('Disabled')}</span>
                                     </label>
                                 </div>
                             </div>
