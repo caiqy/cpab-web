@@ -25,6 +25,7 @@ interface ProviderApiKey {
     id: number;
     provider: string;
     name: string;
+    is_enabled: boolean;
     priority: number;
     api_key: string;
     prefix: string;
@@ -685,6 +686,7 @@ export function AdminApiKeys() {
     const [loading, setLoading] = useState(true);
     const [keyword, setKeyword] = useState('');
     const [providerFilter, setProviderFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
     const [filterMenuOpen, setFilterMenuOpen] = useState(false);
     const [providerBtnWidth, setProviderBtnWidth] = useState<number | undefined>(undefined);
     const [createOpen, setCreateOpen] = useState(false);
@@ -715,6 +717,7 @@ export function AdminApiKeys() {
             const params = new URLSearchParams();
             if (keyword.trim()) params.set('keyword', keyword.trim());
             if (providerFilter) params.set('provider', providerFilter);
+            if (statusFilter) params.set('status', statusFilter);
             const query = params.toString();
             const url = query ? `/v0/admin/provider-api-keys?${query}` : '/v0/admin/provider-api-keys';
             const res = await apiFetchAdmin<ListResponse>(url);
@@ -724,7 +727,7 @@ export function AdminApiKeys() {
         } finally {
             setLoading(false);
         }
-    }, [keyword, providerFilter, canListProviderKeys]);
+    }, [keyword, providerFilter, statusFilter, canListProviderKeys]);
 
     useEffect(() => {
         if (canListProviderKeys) {
@@ -744,6 +747,21 @@ export function AdminApiKeys() {
             fetchData();
         } catch (err) {
             console.error('Failed to delete api key:', err);
+        }
+    };
+
+    const handleToggleEnabled = async (item: ProviderApiKey) => {
+        if (!canUpdateProviderKey) {
+            return;
+        }
+        try {
+            await apiFetchAdmin(`/v0/admin/provider-api-keys/${item.id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ is_enabled: !item.is_enabled }),
+            });
+            fetchData();
+        } catch (err) {
+            console.error('Failed to toggle api key status:', err);
         }
     };
 
@@ -825,6 +843,15 @@ export function AdminApiKeys() {
                                     />
                                 )}
                             </div>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="h-10 px-3 text-sm bg-gray-50 dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                            >
+                                <option value="">{t('All Status')}</option>
+                                <option value="enabled">{t('Enabled')}</option>
+                                <option value="disabled">{t('Disabled')}</option>
+                            </select>
                         </div>
                         <button
                             onClick={fetchData}
@@ -848,6 +875,7 @@ export function AdminApiKeys() {
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('API Key(s)')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Base URL')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Prefix')}</th>
+                                    <th className="px-6 py-4 font-semibold tracking-wider">{t('Status')}</th>
                                     <th className="px-6 py-4 font-semibold tracking-wider">{t('Updated At')}</th>
                                     <th
                                         className={`px-6 py-4 font-semibold tracking-wider text-center sticky right-0 z-20 bg-gray-50 dark:bg-surface-dark relative after:content-[''] after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-gray-200 dark:after:bg-border-dark after:pointer-events-none ${
@@ -861,13 +889,13 @@ export function AdminApiKeys() {
                             <tbody className="divide-y divide-gray-200 dark:divide-border-dark">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={9} className="px-6 py-12 text-center">
+                                        <td colSpan={10} className="px-6 py-12 text-center">
                                             {t('Loading...')}
                                         </td>
                                     </tr>
                                 ) : keys.length === 0 ? (
                                     <tr>
-                                        <td colSpan={9} className="px-6 py-12 text-center">
+                                        <td colSpan={10} className="px-6 py-12 text-center">
                                             {t('No API keys found')}
                                         </td>
                                     </tr>
@@ -875,7 +903,9 @@ export function AdminApiKeys() {
                                     keys.map((item) => (
                                         <tr
                                             key={item.id}
-                                            className="hover:bg-gray-50 dark:hover:bg-background-dark group"
+                                            className={`hover:bg-gray-50 dark:hover:bg-background-dark group ${
+                                                item.is_enabled ? '' : 'opacity-60'
+                                            }`}
                                         >
                                             <td className="px-6 py-4 text-slate-900 dark:text-white font-medium">
                                                 {item.id}
@@ -902,6 +932,17 @@ export function AdminApiKeys() {
                                             <td className="px-6 py-4 text-slate-700 dark:text-gray-300">
                                                 {item.prefix || '—'}
                                             </td>
+                                            <td className="px-6 py-4">
+                                                <span
+                                                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                                                        item.is_enabled
+                                                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800'
+                                                            : 'bg-gray-100 text-gray-700 dark:bg-gray-700/40 dark:text-gray-300 border-gray-200 dark:border-gray-600'
+                                                    }`}
+                                                >
+                                                    {item.is_enabled ? t('Enabled') : t('Disabled')}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-4 font-mono text-xs">
                                                 {formatDate(item.updated_at, locale)}
                                             </td>
@@ -911,6 +952,19 @@ export function AdminApiKeys() {
                                                 }`}
                                             >
                                                 <div className="flex items-center justify-center gap-1">
+                                                    {canUpdateProviderKey && (
+                                                        <button
+                                                            onClick={() => handleToggleEnabled(item)}
+                                                            className={`p-2 rounded-lg transition-colors ${
+                                                                item.is_enabled
+                                                                    ? 'text-gray-400 hover:text-amber-500 hover:bg-gray-100 dark:hover:bg-background-dark'
+                                                                    : 'text-gray-400 hover:text-emerald-500 hover:bg-gray-100 dark:hover:bg-background-dark'
+                                                            }`}
+                                                            title={item.is_enabled ? t('Disable') : t('Enable')}
+                                                        >
+                                                            <Icon name={item.is_enabled ? 'toggle_off' : 'toggle_on'} size={18} />
+                                                        </button>
+                                                    )}
                                                     {canUpdateProviderKey && (
                                                         <button
                                                             onClick={() => setEditing(item)}
