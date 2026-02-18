@@ -849,6 +849,8 @@ const zhCN: Record<string, string> = {
     "Please switch to file or text tab to import.": "请切换到文件导入或文本导入后再执行导入。",
     "No valid entries to import.": "没有可导入的有效条目。",
     "Some entries failed to import.": "部分条目导入失败。",
+    "Key and type are generated automatically by the system.": "key 和 type 将由系统自动生成。",
+    "iFlow supports three import modes: api_key OR (cookie + email) OR refresh_token.": "iFlow 支持三种导入模式：api_key 或（cookie + email）或 refresh_token。",
     "Imported {{count}} auth files": "已导入 {{count}} 个认证文件",
     "No files selected yet.": "尚未选择文件",
     "Only JSON files are supported.": "仅支持 JSON 文件。",

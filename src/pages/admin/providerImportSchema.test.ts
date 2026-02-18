@@ -25,21 +25,33 @@ describe('providerImportSchema', () => {
             provider: 'anthropic',
             source: 'text',
             authGroupIDs: [1],
-            entries: [{ key: 'claude-main', access_token: 'token-a' }],
+            entries: [{ access_token: 'token-a', email: 'User@Example.com ' }],
         });
         expect(payload.provider).toBe('anthropic');
-        expect(payload.entries[0].type).toBe('claude');
+        expect((payload.entries[0] as Record<string, unknown>).type).toBeUndefined();
+        expect((payload.entries[0] as Record<string, unknown>).key).toBeUndefined();
     });
 
     it('keeps only required fields for provider payload', () => {
         const sanitized = sanitizeEntryForProvider('kiro', {
-            key: 'kiro-main',
             access_token: 'token-a',
             refresh_token: 'token-b',
             noisy: true,
         });
-        expect(sanitized.key).toBe('kiro-main');
-        expect(sanitized.type).toBe('kiro');
+        expect((sanitized as Record<string, unknown>).key).toBeUndefined();
+        expect((sanitized as Record<string, unknown>).type).toBeUndefined();
         expect((sanitized as Record<string, unknown>).noisy).toBeUndefined();
+    });
+
+    it('supports iflow three-mode inputs', () => {
+        const apiKeyMode = sanitizeEntryForProvider('iflow-cookie', { api_key: 'api-key-only' });
+        expect(apiKeyMode.api_key).toBe('api-key-only');
+
+        const cookieMode = sanitizeEntryForProvider('iflow-cookie', { cookie: 'BXAuth=demo', email: 'demo@example.com' });
+        expect(cookieMode.cookie).toBe('BXAuth=demo');
+        expect(cookieMode.email).toBe('demo@example.com');
+
+        const oauthMode = sanitizeEntryForProvider('iflow-cookie', { refresh_token: 'rt-1' });
+        expect(oauthMode.refresh_token).toBe('rt-1');
     });
 });

@@ -843,6 +843,8 @@ const en: Record<string, string> = {
     "Please switch to file or text tab to import.": "Please switch to file or text tab to import.",
     "No valid entries to import.": "No valid entries to import.",
     "Some entries failed to import.": "Some entries failed to import.",
+    "Key and type are generated automatically by the system.": "Key and type are generated automatically by the system.",
+    "iFlow supports three import modes: api_key OR (cookie + email) OR refresh_token.": "iFlow supports three import modes: api_key OR (cookie + email) OR refresh_token.",
     "Imported {{count}} auth files": "Imported {{count}} auth files",
     "No files selected yet.": "No files selected yet.",
     "Only JSON files are supported.": "Only JSON files are supported.",

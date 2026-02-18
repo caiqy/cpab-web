@@ -25,55 +25,51 @@ export const PROVIDER_IMPORT_OPTIONS: ProviderImportOption[] = [
 
 export const PROVIDER_IMPORT_TEMPLATES: Record<ProviderImportKey, Record<string, unknown>> = {
     codex: {
-        key: 'codex-main',
-        type: 'codex',
         access_token: '<access_token>',
-        refresh_token: '<refresh_token>',
         email: 'you@example.com',
+        refresh_token: '<refresh_token_optional>',
     },
     anthropic: {
-        key: 'claude-main',
-        type: 'claude',
         access_token: '<access_token>',
-        refresh_token: '<refresh_token>',
         email: 'you@example.com',
+        refresh_token: '<refresh_token_optional>',
     },
     'gemini-cli': {
-        key: 'gemini-main',
-        type: 'gemini',
         access_token: '<access_token>',
-        refresh_token: '<refresh_token>',
-        email: 'you@example.com',
+        token: {
+            access_token: '<access_token_optional_alternative>',
+        },
         project_id: '<gcp_project_id>',
+        email: 'you@example.com',
     },
     antigravity: {
-        key: 'antigravity-main',
-        type: 'antigravity',
         access_token: '<access_token>',
-        refresh_token: '<refresh_token>',
         email: 'you@example.com',
+        refresh_token: '<refresh_token_optional>',
     },
     qwen: {
-        key: 'qwen-main',
-        type: 'qwen',
         access_token: '<access_token>',
-        refresh_token: '<refresh_token>',
         email: 'you@example.com',
+        refresh_token: '<refresh_token_optional>',
     },
     kiro: {
-        key: 'kiro-main',
-        type: 'kiro',
         access_token: '<access_token>',
-        refresh_token: '<refresh_token>',
+        refresh_token: '<refresh_token_optional>',
         auth_method: 'builder-id',
         email: 'you@example.com',
     },
     'iflow-cookie': {
-        key: 'iflow-main',
-        type: 'iflow',
+        _mode_a_api_key: {
+            api_key: '<api_key>',
+        },
+        _mode_b_cookie: {
+            cookie: 'BXAuth=<cookie>',
+            email: 'you@example.com',
+        },
+        _mode_c_oauth: {
+            refresh_token: '<refresh_token>',
+            access_token: '<access_token_optional>',
+        },
         api_key: '<api_key>',
-        access_token: '<access_token>',
-        refresh_token: '<refresh_token>',
-        email: 'you@example.com',
     },
 };

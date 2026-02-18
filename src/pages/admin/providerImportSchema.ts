@@ -1,15 +1,5 @@
 import type { ProviderImportKey } from './providerImportTemplates';
 
-const PROVIDER_CANONICAL_TYPE: Record<ProviderImportKey, string> = {
-    codex: 'codex',
-    anthropic: 'claude',
-    'gemini-cli': 'gemini',
-    antigravity: 'antigravity',
-    qwen: 'qwen',
-    kiro: 'kiro',
-    'iflow-cookie': 'iflow',
-};
-
 const COMMON_ALLOWED_FIELDS = [
     'email',
     'proxy_url',
@@ -83,15 +73,6 @@ function pickFieldValue(entry: Record<string, unknown>, field: string): unknown 
     return undefined;
 }
 
-function extractKey(entry: Record<string, unknown>): string {
-    const key = typeof entry.key === 'string' ? entry.key.trim() : '';
-    if (key) {
-        return key;
-    }
-    const id = typeof entry.id === 'string' ? entry.id.trim() : '';
-    return id;
-}
-
 export function parseEntriesFromJsonText(input: string): { entries: Record<string, unknown>[]; error?: string } {
     const text = input.trim();
     if (!text) {
@@ -123,14 +104,8 @@ export function sanitizeEntryForProvider(
     provider: ProviderImportKey,
     entry: Record<string, unknown>
 ): Record<string, unknown> {
-    const canonicalType = PROVIDER_CANONICAL_TYPE[provider];
     const allowedFields = PROVIDER_ALLOWED_FIELDS[provider] ?? COMMON_ALLOWED_FIELDS;
-    const key = extractKey(entry);
-
-    const sanitized: Record<string, unknown> = {
-        key,
-        type: canonicalType,
-    };
+    const sanitized: Record<string, unknown> = {};
 
     for (const field of allowedFields) {
         const value = pickFieldValue(entry, field);

@@ -271,6 +271,15 @@ export function AuthFilesProviderImportModal({
                         </button>
                     </div>
 
+                    <div className="rounded-lg border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 p-3 text-xs text-blue-700 dark:text-blue-300">
+                        {t('Key and type are generated automatically by the system.')}
+                        {provider === 'iflow-cookie' && (
+                            <div className="mt-1">
+                                {t('iFlow supports three import modes: api_key OR (cookie + email) OR refresh_token.')}
+                            </div>
+                        )}
+                    </div>
+
                     {activeTab === 'file' && (
                         <div className="space-y-3">
                             <div
