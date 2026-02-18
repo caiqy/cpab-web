@@ -3,7 +3,7 @@ import type { ReactNode, RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { AdminDashboardLayout } from '../../components/admin/AdminDashboardLayout';
 import { AdminNoAccessCard } from '../../components/admin/AdminNoAccessCard';
-import { apiFetchAdmin } from '../../api/config';
+import { APIRequestError, apiFetchAdmin } from '../../api/config';
 import { Icon } from '../../components/Icon';
 import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminPermissions';
 import { useTranslation } from 'react-i18next';
@@ -32,6 +32,22 @@ interface AuthGroup {
 
 interface AuthGroupListResponse {
     auth_groups: AuthGroup[];
+}
+
+interface ManualRefreshCreateResponse {
+    task_id: string;
+    status: string;
+    total: number;
+}
+
+interface ManualRefreshTaskResponse {
+    task_id: string;
+    status: string;
+    total: number;
+    processed: number;
+    success_count: number;
+    failed_count: number;
+    skipped_count: number;
 }
 
 interface QuotaItem {
@@ -708,6 +724,9 @@ export function AdminQuotas() {
     const { hasPermission } = useAdminPermissions();
     const canListQuotas = hasPermission(buildAdminPermissionKey('GET', '/v0/admin/quotas'));
     const canListAuthGroups = hasPermission(buildAdminPermissionKey('GET', '/v0/admin/auth-groups'));
+    const canCreateManualRefresh = hasPermission(buildAdminPermissionKey('POST', '/v0/admin/quotas/manual-refresh'));
+    const canGetManualRefresh = hasPermission(buildAdminPermissionKey('GET', '/v0/admin/quotas/manual-refresh/:task_id'));
+    const canQueryQuota = canCreateManualRefresh && canGetManualRefresh;
     const pageSize = 12;
 
     const [quotas, setQuotas] = useState<QuotaRecord[]>([]);
@@ -723,6 +742,11 @@ export function AdminQuotas() {
     const [typeBtnWidth, setTypeBtnWidth] = useState<number | undefined>(undefined);
     const [authGroupMenuOpen, setAuthGroupMenuOpen] = useState(false);
     const [authGroupBtnWidth, setAuthGroupBtnWidth] = useState<number | undefined>(undefined);
+    const [isQueryingQuota, setIsQueryingQuota] = useState(false);
+    const [manualRefreshTask, setManualRefreshTask] = useState<ManualRefreshTaskResponse | null>(null);
+    const [manualRefreshError, setManualRefreshError] = useState('');
+    const queryQuotaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const activeManualRefreshTaskIdRef = useRef<string>('');
 
     const typeOptions = useMemo(() => {
         const fallback = t('Unknown');
@@ -789,9 +813,113 @@ export function AdminQuotas() {
         }
     }, [canListQuotas, page, pageSize, search, typeFilter, authGroupFilter]);
 
+    const clearQueryQuotaTimer = useCallback(() => {
+        if (queryQuotaTimerRef.current) {
+            clearTimeout(queryQuotaTimerRef.current);
+            queryQuotaTimerRef.current = null;
+        }
+    }, []);
+
+    const pollManualRefreshTask = useCallback(
+        async (taskId: string) => {
+            try {
+                const res = await apiFetchAdmin<ManualRefreshTaskResponse>(
+                    `/v0/admin/quotas/manual-refresh/${encodeURIComponent(taskId)}`
+                );
+                if (activeManualRefreshTaskIdRef.current !== taskId) {
+                    return;
+                }
+                setManualRefreshTask(res);
+                if (res.status === 'running') {
+                    queryQuotaTimerRef.current = setTimeout(() => {
+                        void pollManualRefreshTask(taskId);
+                    }, 1000);
+                    return;
+                }
+                activeManualRefreshTaskIdRef.current = '';
+                setIsQueryingQuota(false);
+                await fetchQuotas();
+            } catch (err) {
+                if (activeManualRefreshTaskIdRef.current !== taskId) {
+                    return;
+                }
+                activeManualRefreshTaskIdRef.current = '';
+                setIsQueryingQuota(false);
+                if (err instanceof APIRequestError && err.status === 404) {
+                    setManualRefreshError(t('Quota refresh task expired. Please query quota again.'));
+                    return;
+                }
+                setManualRefreshError(err instanceof Error ? err.message : t('Failed to query quota.'));
+            }
+        },
+        [fetchQuotas, t]
+    );
+
+    const handleQueryQuota = useCallback(async () => {
+        if (!canQueryQuota || isQueryingQuota) {
+            return;
+        }
+        clearQueryQuotaTimer();
+        setManualRefreshError('');
+        setManualRefreshTask(null);
+        setIsQueryingQuota(true);
+
+        const payload: Record<string, string> = {};
+        if (search.trim()) {
+            payload.key = search.trim();
+        }
+        if (typeFilter) {
+            payload.type = typeFilter;
+        }
+        if (authGroupFilter) {
+            payload.auth_group_id = authGroupFilter.toString();
+        }
+
+        try {
+            const created = await apiFetchAdmin<ManualRefreshCreateResponse>('/v0/admin/quotas/manual-refresh', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
+            if (!created.task_id) {
+                throw new Error(t('Failed to create quota refresh task.'));
+            }
+            activeManualRefreshTaskIdRef.current = created.task_id;
+            setManualRefreshTask({
+                task_id: created.task_id,
+                status: created.status || 'running',
+                total: created.total || 0,
+                processed: 0,
+                success_count: 0,
+                failed_count: 0,
+                skipped_count: 0,
+            });
+            await pollManualRefreshTask(created.task_id);
+        } catch (err) {
+            activeManualRefreshTaskIdRef.current = '';
+            setIsQueryingQuota(false);
+            setManualRefreshError(err instanceof Error ? err.message : t('Failed to create quota refresh task.'));
+        }
+    }, [
+        authGroupFilter,
+        canQueryQuota,
+        clearQueryQuotaTimer,
+        isQueryingQuota,
+        pollManualRefreshTask,
+        search,
+        t,
+        typeFilter,
+    ]);
+
     useEffect(() => {
         fetchQuotas();
     }, [fetchQuotas]);
+
+    useEffect(() => {
+        return () => {
+            clearQueryQuotaTimer();
+            activeManualRefreshTaskIdRef.current = '';
+        };
+    }, [clearQueryQuotaTimer]);
 
     useEffect(() => {
         if (!canListAuthGroups) {
@@ -881,6 +1009,16 @@ export function AdminQuotas() {
         setPage(1);
     };
 
+    const manualRefreshProgressText = manualRefreshTask
+        ? t('Quota refresh progress: {{processed}}/{{total}} (success {{success}}, failed {{failed}}, skipped {{skipped}})', {
+              processed: manualRefreshTask.processed,
+              total: manualRefreshTask.total,
+              success: manualRefreshTask.success_count,
+              failed: manualRefreshTask.failed_count,
+              skipped: manualRefreshTask.skipped_count,
+          })
+        : '';
+
     return (
         <AdminDashboardLayout title={t('Quota')} subtitle={t('Monitor quota usage')}>
             <div className="space-y-6">
@@ -944,14 +1082,56 @@ export function AdminQuotas() {
                             )}
                         </div>
                     </div>
-                    <button
-                        onClick={fetchQuotas}
-                        className="h-10 w-10 inline-flex items-center justify-center text-slate-500 hover:text-primary hover:bg-slate-50 dark:hover:bg-background-dark rounded-lg border border-gray-200 dark:border-border-dark transition-colors"
-                        title={t('Refresh')}
-                    >
-                        <Icon name="refresh" size={18} />
-                    </button>
+                    <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                        {canQueryQuota && (
+                            <button
+                                type="button"
+                                onClick={handleQueryQuota}
+                                disabled={isQueryingQuota}
+                                className="h-10 px-4 inline-flex items-center justify-center text-sm font-medium text-slate-700 dark:text-white bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-lg hover:bg-slate-50 dark:hover:bg-background-dark disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                            >
+                                {t('Query Quota')}
+                            </button>
+                        )}
+                        <button
+                            onClick={fetchQuotas}
+                            className="h-10 w-10 inline-flex items-center justify-center text-slate-500 hover:text-primary hover:bg-slate-50 dark:hover:bg-background-dark rounded-lg border border-gray-200 dark:border-border-dark transition-colors"
+                            title={t('Refresh')}
+                        >
+                            <Icon name="refresh" size={18} />
+                        </button>
+                    </div>
                 </div>
+
+                {(manualRefreshError || manualRefreshTask) && (
+                    <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-border-dark shadow-sm px-4 py-3 text-sm">
+                        {manualRefreshError ? (
+                            <span className="text-rose-600 dark:text-rose-300">{manualRefreshError}</span>
+                        ) : manualRefreshTask?.status === 'running' ? (
+                            <span className="text-slate-600 dark:text-text-secondary">{manualRefreshProgressText}</span>
+                        ) : manualRefreshTask?.status === 'failed' ? (
+                            <span className="text-rose-600 dark:text-rose-300">
+                                {t('Quota refresh failed: {{processed}}/{{total}} (success {{success}}, failed {{failed}}, skipped {{skipped}})', {
+                                    processed: manualRefreshTask.processed,
+                                    total: manualRefreshTask.total,
+                                    success: manualRefreshTask.success_count,
+                                    failed: manualRefreshTask.failed_count,
+                                    skipped: manualRefreshTask.skipped_count,
+                                })}
+                            </span>
+                        ) : (
+                            <span className="text-emerald-600 dark:text-emerald-300">
+                                {t('Quota refresh completed: {{processed}}/{{total}} (success {{success}}, failed {{failed}}, skipped {{skipped}})', {
+                                    processed: manualRefreshTask?.processed || 0,
+                                    total: manualRefreshTask?.total || 0,
+                                    success: manualRefreshTask?.success_count || 0,
+                                    failed: manualRefreshTask?.failed_count || 0,
+                                    skipped: manualRefreshTask?.skipped_count || 0,
+                                })}
+                            </span>
+                        )}
+                    </div>
+                )}
 
                 {isLoading && quotas.length === 0 ? (
                     <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-border-dark shadow-sm p-8 text-center text-sm text-slate-500 dark:text-text-secondary">
