@@ -13,6 +13,7 @@ import {
     normalizeAuthStatusResponse,
     normalizeTokenStartResponse,
 } from './authFilesAuthFlow';
+import { AuthFilesProviderImportModal } from './AuthFilesProviderImportModal';
 
 interface TypeDropdownMenuProps {
     types: string[];
@@ -473,6 +474,9 @@ export function AdminAuthFiles() {
         buildAdminPermissionKey('POST', '/v0/admin/tokens/get-auth-status')
     );
     const canImportAuthFiles = hasPermission(buildAdminPermissionKey('POST', '/v0/admin/auth-files/import'));
+    const canImportAuthFilesByProvider = hasPermission(
+        buildAdminPermissionKey('POST', '/v0/admin/auth-files/import-by-provider')
+    );
 
     const [authFiles, setAuthFiles] = useState<AuthFile[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -491,6 +495,7 @@ export function AdminAuthFiles() {
     const [groupFilterBtnWidth, setGroupFilterBtnWidth] = useState<number | undefined>(undefined);
     const [newMenuOpen, setNewMenuOpen] = useState(false);
     const [newMenuWidth, setNewMenuWidth] = useState<number | undefined>(undefined);
+    const [providerImportModalOpen, setProviderImportModalOpen] = useState(false);
     const [importModalOpen, setImportModalOpen] = useState(false);
     const [importFiles, setImportFiles] = useState<File[]>([]);
     const [importDragging, setImportDragging] = useState(false);
@@ -566,7 +571,7 @@ export function AdminAuthFiles() {
     }, [hasPermission]);
 
     const canRequestAuth = canCreateAuthFiles && canCheckAuthStatus && availableAuthTypes.length > 0;
-    const canOpenNewMenu = canRequestAuth || canImportAuthFiles;
+    const canOpenNewMenu = canRequestAuth || canImportAuthFiles || canImportAuthFilesByProvider;
     const canBindProxies = canUpdateAuthFiles && canListProxies;
     const canBatchGroup = canUpdateAuthFiles && canListGroups;
     const canBatchEnable = canSetAvailable;
@@ -620,6 +625,9 @@ export function AdminAuthFiles() {
             return;
         }
         const labels = availableAuthTypes.map((type) => type.label);
+        if (canImportAuthFilesByProvider) {
+            labels.push(t('Import Auth Files (Provider)'));
+        }
         if (canImportAuthFiles) {
             labels.push(t('Import From CLIProxyAPI'));
         }
@@ -638,7 +646,7 @@ export function AdminAuthFiles() {
             }
             setNewMenuWidth(Math.ceil(maxWidth) + 64);
         }
-    }, [availableAuthTypes, canImportAuthFiles, canOpenNewMenu, t]);
+    }, [availableAuthTypes, canImportAuthFiles, canImportAuthFilesByProvider, canOpenNewMenu, t]);
 
     const fetchAuthGroups = useCallback(async () => {
         if (!canListGroups) {
@@ -1589,6 +1597,18 @@ export function AdminAuthFiles() {
         }
     };
 
+    const handleOpenProviderImportModal = () => {
+        if (!canImportAuthFilesByProvider) {
+            return;
+        }
+        setNewMenuOpen(false);
+        setProviderImportModalOpen(true);
+    };
+
+    const handleCloseProviderImportModal = () => {
+        setProviderImportModalOpen(false);
+    };
+
     const handleOpenUrl = () => {
         window.open(modalUrl, '_blank');
         if (authState && authStatus === 'idle') {
@@ -1861,17 +1881,27 @@ export function AdminAuthFiles() {
                                                 {type.label}
                                             </button>
                                         ))}
-                                        {canImportAuthFiles && (
+                                        {(canImportAuthFilesByProvider || canImportAuthFiles) && (
                                             <>
                                                 {availableAuthTypes.length > 0 && (
                                                     <div className="border-t border-gray-200 dark:border-border-dark" />
                                                 )}
-                                                <button
-                                                    onClick={handleOpenImportModal}
-                                                    className="w-full text-left px-4 py-2.5 text-sm whitespace-nowrap text-slate-900 dark:text-white hover:bg-gray-100 dark:hover:bg-background-dark first:rounded-t-lg last:rounded-b-lg transition-colors"
-                                                >
-                                                    {t('Import From CLIProxyAPI')}
-                                                </button>
+                                                {canImportAuthFilesByProvider && (
+                                                    <button
+                                                        onClick={handleOpenProviderImportModal}
+                                                        className="w-full text-left px-4 py-2.5 text-sm whitespace-nowrap text-slate-900 dark:text-white hover:bg-gray-100 dark:hover:bg-background-dark transition-colors"
+                                                    >
+                                                        {t('Import Auth Files (Provider)')}
+                                                    </button>
+                                                )}
+                                                {canImportAuthFiles && (
+                                                    <button
+                                                        onClick={handleOpenImportModal}
+                                                        className="w-full text-left px-4 py-2.5 text-sm whitespace-nowrap text-slate-900 dark:text-white hover:bg-gray-100 dark:hover:bg-background-dark first:rounded-t-lg last:rounded-b-lg transition-colors"
+                                                    >
+                                                        {t('Import From CLIProxyAPI')}
+                                                    </button>
+                                                )}
                                             </>
                                         )}
                                     </div>
@@ -2348,6 +2378,18 @@ export function AdminAuthFiles() {
                     </div>
                 </div>
             )}
+
+            <AuthFilesProviderImportModal
+                open={providerImportModalOpen}
+                authGroups={authGroups}
+                canListGroups={canListGroups}
+                onClose={handleCloseProviderImportModal}
+                onImported={async () => {
+                    await fetchData();
+                    await fetchTypes();
+                }}
+                onToast={showToast}
+            />
 
             {importModalOpen && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
