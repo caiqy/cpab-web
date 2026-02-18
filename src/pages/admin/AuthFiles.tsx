@@ -9,6 +9,10 @@ import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminP
 import { useStickyActionsDivider } from '../../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
 import { copyText } from '../../utils/copy';
+import {
+    normalizeAuthStatusResponse,
+    normalizeTokenStartResponse,
+} from './authFilesAuthFlow';
 
 interface TypeDropdownMenuProps {
     types: string[];
@@ -294,16 +298,6 @@ interface ProxiesResponse {
     proxies: ProxyItem[];
 }
 
-interface TokenUrlResponse {
-    url: string;
-    state: string;
-}
-
-interface AuthStatusResponse {
-    status: 'ok' | 'wait' | 'error';
-    error?: string;
-}
-
 interface ImportFailure {
     file: string;
     error: string;
@@ -447,6 +441,7 @@ const AUTH_TYPES = [
     { key: 'anthropic', label: 'Anthropic', endpoint: '/v0/admin/tokens/anthropic' },
     { key: 'antigravity', label: 'Antigravity', endpoint: '/v0/admin/tokens/antigravity' },
     { key: 'gemini-cli', label: 'Gemini CLI', endpoint: '/v0/admin/tokens/gemini' },
+    { key: 'kiro', label: 'Kiro', endpoint: '/v0/admin/tokens/kiro' },
     { key: 'iflow-cookie', label: 'iFlow', endpoint: '/v0/admin/tokens/iflow-cookie' },
     { key: 'qwen', label: 'Qwen', endpoint: '/v0/admin/tokens/qwen' },
 ];
@@ -518,6 +513,9 @@ export function AdminAuthFiles() {
     const [callbackUrl, setCallbackUrl] = useState('');
     const [callbackSubmitting, setCallbackSubmitting] = useState(false);
     const [callbackError, setCallbackError] = useState('');
+    const [deviceVerificationUrl, setDeviceVerificationUrl] = useState('');
+    const [deviceUserCode, setDeviceUserCode] = useState('');
+    const [deviceCodeCopied, setDeviceCodeCopied] = useState(false);
     const [iflowCookie, setIflowCookie] = useState('');
     const [iflowSubmitting, setIflowSubmitting] = useState(false);
     const [iflowError, setIflowError] = useState('');
@@ -583,6 +581,7 @@ export function AdminAuthFiles() {
     const allProxySelected = proxyIds.length > 0 && proxyIds.every((id) => selectedProxyIds.has(id));
     const selectedProxyCount = selectedProxyIds.size;
     const oauthProvider = authTypeKey ? OAUTH_CALLBACK_PROVIDERS[authTypeKey] : '';
+    const isKiro = authTypeKey === 'kiro';
     const isIFlowCookie = authTypeKey === 'iflow-cookie';
 
     useEffect(() => {
@@ -1335,13 +1334,17 @@ export function AdminAuthFiles() {
         setAuthStatus('polling');
         setPollCount(0);
         setAuthError('');
+        setDeviceVerificationUrl('');
+        setDeviceUserCode('');
+        setDeviceCodeCopied(false);
 
         const poll = async () => {
             try {
-                const res = await apiFetchAdmin<AuthStatusResponse>(
+                const raw = await apiFetchAdmin<unknown>(
                     `/v0/admin/tokens/get-auth-status?state=${encodeURIComponent(state)}`,
                     { method: 'POST' }
                 );
+                const res = normalizeAuthStatusResponse(raw);
                 setPollCount((prev) => prev + 1);
 
                 if (res.status === 'ok') {
@@ -1355,6 +1358,22 @@ export function AdminAuthFiles() {
                     setAuthStatus('error');
                     setAuthError(res.error || t('Authentication failed'));
                     stopPolling();
+                } else if (res.status === 'device_code') {
+                    setAuthStatus('polling');
+                    setAuthError('');
+                    if (res.verification_url) {
+                        setDeviceVerificationUrl(res.verification_url);
+                    }
+                    if (res.user_code) {
+                        setDeviceUserCode(res.user_code);
+                    }
+                    if (res.url) {
+                        setModalUrl(res.url);
+                    }
+                } else if (res.status === 'auth_url') {
+                    if (res.url) {
+                        setModalUrl(res.url);
+                    }
                 }
             } catch (err) {
                 console.error('Failed to poll auth status:', err);
@@ -1401,6 +1420,9 @@ export function AdminAuthFiles() {
         setCallbackUrl('');
         setCallbackSubmitting(false);
         setCallbackError('');
+        setDeviceVerificationUrl('');
+        setDeviceUserCode('');
+        setDeviceCodeCopied(false);
         setIflowCookie('');
         setIflowSubmitting(false);
         setIflowError('');
@@ -1520,6 +1542,9 @@ export function AdminAuthFiles() {
         setCallbackUrl('');
         setCallbackSubmitting(false);
         setCallbackError('');
+        setDeviceVerificationUrl('');
+        setDeviceUserCode('');
+        setDeviceCodeCopied(false);
         setIflowCookie('');
         setIflowSubmitting(false);
         setIflowError('');
@@ -1536,9 +1561,13 @@ export function AdminAuthFiles() {
             return;
         }
         try {
-            const res = await apiFetchAdmin<TokenUrlResponse>(authType.endpoint, { method: 'POST' });
-            setModalUrl(res.url);
-            setAuthState(res.state);
+            const res = await apiFetchAdmin<unknown>(authType.endpoint, { method: 'POST' });
+            const tokenStart = normalizeTokenStartResponse(res);
+            setModalUrl(tokenStart.url || '');
+            setAuthState(tokenStart.state);
+            if (typeKey === 'kiro') {
+                startPolling(tokenStart.state);
+            }
         } catch (err) {
             console.error(`Failed to fetch ${authType.label} token url:`, err);
             setModalUrl('');
@@ -1564,6 +1593,26 @@ export function AdminAuthFiles() {
         window.open(modalUrl, '_blank');
         if (authState && authStatus === 'idle') {
             startPolling(authState);
+        }
+    };
+
+    const handleOpenDeviceVerification = () => {
+        if (!deviceVerificationUrl) {
+            return;
+        }
+        window.open(deviceVerificationUrl, '_blank');
+    };
+
+    const handleCopyDeviceCode = async () => {
+        if (!deviceUserCode) {
+            return;
+        }
+        const result = await copyText(deviceUserCode, { source: 'AdminAuthFiles.copyDeviceCode' });
+        if (result.status === 'success') {
+            setDeviceCodeCopied(true);
+            setTimeout(() => setDeviceCodeCopied(false), 2000);
+        } else if (result.status === 'fallback') {
+            showToast(t('Copy switched to manual mode'));
         }
     };
 
@@ -1691,6 +1740,9 @@ export function AdminAuthFiles() {
         setCallbackUrl('');
         setCallbackSubmitting(false);
         setCallbackError('');
+        setDeviceVerificationUrl('');
+        setDeviceUserCode('');
+        setDeviceCodeCopied(false);
         setIflowCookie('');
         setIflowSubmitting(false);
         setIflowError('');
@@ -2579,35 +2631,98 @@ export function AdminAuthFiles() {
                                         </form>
                                     ) : (
                                         <>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                    {t('URL')}
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    readOnly
-                                                    value={modalUrl}
-                                                    className="block w-full p-2.5 text-sm text-slate-900 dark:text-white bg-gray-100 dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded-lg cursor-default"
-                                                />
-                                            </div>
-                                            <div className="flex gap-3">
-                                                <button
-                                                    onClick={handleOpenUrl}
-                                                    disabled={!modalUrl || authStatus === 'ok'}
-                                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    <Icon name="open_in_new" size={18} />
-                                                    {t('Open URL')}
-                                                </button>
-                                                <button
-                                                    onClick={handleCopyUrl}
-                                                    disabled={!modalUrl || authStatus === 'ok'}
-                                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-background-dark text-slate-900 dark:text-white border border-gray-300 dark:border-border-dark rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    <Icon name={copied ? 'check' : 'content_copy'} size={18} />
-                                                    {copied ? t('Copied') : t('Copy URL')}
-                                                </button>
-                                            </div>
+                                            {(!isKiro || modalUrl) && (
+                                                <>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                            {t('URL')}
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            readOnly
+                                                            value={modalUrl}
+                                                            className="block w-full p-2.5 text-sm text-slate-900 dark:text-white bg-gray-100 dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded-lg cursor-default"
+                                                        />
+                                                    </div>
+                                                    <div className="flex gap-3">
+                                                        <button
+                                                            onClick={handleOpenUrl}
+                                                            disabled={!modalUrl || authStatus === 'ok'}
+                                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        >
+                                                            <Icon name="open_in_new" size={18} />
+                                                            {t('Open URL')}
+                                                        </button>
+                                                        <button
+                                                            onClick={handleCopyUrl}
+                                                            disabled={!modalUrl || authStatus === 'ok'}
+                                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-background-dark text-slate-900 dark:text-white border border-gray-300 dark:border-border-dark rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        >
+                                                            <Icon name={copied ? 'check' : 'content_copy'} size={18} />
+                                                            {copied ? t('Copied') : t('Copy URL')}
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {isKiro && authStatus === 'polling' && (
+                                                <div className="rounded-lg border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark p-4 space-y-3">
+                                                    <div className="text-sm text-gray-700 dark:text-gray-300">
+                                                        {t('Use this code to complete Kiro sign-in')}
+                                                    </div>
+                                                    {deviceVerificationUrl ? (
+                                                        <>
+                                                            <div>
+                                                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                                                    {t('Verification URL')}
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    readOnly
+                                                                    value={deviceVerificationUrl}
+                                                                    className="block w-full p-2 text-xs text-slate-900 dark:text-white bg-white dark:bg-surface-dark border border-gray-300 dark:border-border-dark rounded-lg cursor-default"
+                                                                />
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleOpenDeviceVerification}
+                                                                disabled={!deviceVerificationUrl}
+                                                                className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            >
+                                                                <Icon name="open_in_new" size={16} />
+                                                                {t('Open URL')}
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                            {t('Waiting for authentication...')}
+                                                        </div>
+                                                    )}
+                                                    {deviceUserCode && (
+                                                        <div className="space-y-2">
+                                                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
+                                                                {t('User Code')}
+                                                            </label>
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    readOnly
+                                                                    value={deviceUserCode}
+                                                                    className="flex-1 p-2 text-sm font-semibold tracking-wide text-slate-900 dark:text-white bg-white dark:bg-surface-dark border border-gray-300 dark:border-border-dark rounded-lg cursor-default"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleCopyDeviceCode}
+                                                                    className="inline-flex items-center justify-center gap-1 px-3 py-2 text-sm bg-gray-100 dark:bg-surface-dark text-slate-900 dark:text-white border border-gray-300 dark:border-border-dark rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                                                >
+                                                                    <Icon name={deviceCodeCopied ? 'check' : 'content_copy'} size={16} />
+                                                                    {deviceCodeCopied ? t('Copied') : t('Copy Code')}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </>
                                     )}
 
