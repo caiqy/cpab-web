@@ -15,6 +15,10 @@ interface QuotaRecord {
     type: string;
     data: unknown;
     updated_at: string;
+    is_available?: boolean;
+    token_invalid?: boolean;
+    last_auth_check_at?: string | null;
+    last_auth_error?: string | null;
 }
 
 interface QuotaListResponse {
@@ -686,6 +690,57 @@ function formatQuotaTime(value: string | null, locale: string): string {
     return formatter.format(date);
 }
 
+function formatAbsoluteTime(value: string | null, locale: string): string {
+    if (!value) {
+        return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+    const formatter = new Intl.DateTimeFormat(locale || undefined, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+    });
+    return formatter.format(date);
+}
+
+function formatRelativeTime(
+    value: string | null,
+    t: (key: string, options?: { [key: string]: unknown }) => string
+): string {
+    if (!value) {
+        return '--';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '--';
+    }
+    const now = Date.now();
+    const diff = Math.max(0, now - date.getTime());
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) {
+        return t('Just now');
+    }
+    if (mins < 60) {
+        return t('{{count}} mins ago', { count: mins });
+    }
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) {
+        return t('{{count}} hr ago', { count: hours });
+    }
+    const days = Math.floor(hours / 24);
+    if (days < 30) {
+        return t('{{count}} days ago', { count: days });
+    }
+    const months = Math.floor(days / 30);
+    return t('{{count}} months ago', { count: months });
+}
+
 function formatTypeLabel(value: string, fallback: string): string {
     const trimmed = value.trim();
     if (!trimmed) {
@@ -745,6 +800,8 @@ export function AdminQuotas() {
     const [isQueryingQuota, setIsQueryingQuota] = useState(false);
     const [manualRefreshTask, setManualRefreshTask] = useState<ManualRefreshTaskResponse | null>(null);
     const [manualRefreshError, setManualRefreshError] = useState('');
+    const [errorDialogQuota, setErrorDialogQuota] = useState<QuotaRecord | null>(null);
+    const [errorCopied, setErrorCopied] = useState(false);
     const queryQuotaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const activeManualRefreshTaskIdRef = useRef<string>('');
 
@@ -1019,6 +1076,19 @@ export function AdminQuotas() {
           })
         : '';
 
+    const handleCopyError = async () => {
+        if (!errorDialogQuota?.last_auth_error) {
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(errorDialogQuota.last_auth_error);
+            setErrorCopied(true);
+            window.setTimeout(() => setErrorCopied(false), 1500);
+        } catch {
+            setErrorCopied(false);
+        }
+    };
+
     return (
         <AdminDashboardLayout title={t('Quota')} subtitle={t('Monitor quota usage')}>
             <div className="space-y-6">
@@ -1201,6 +1271,50 @@ export function AdminQuotas() {
                                         })
                                     )}
                                 </AutoScrollList>
+                                <div className="border-t border-dashed border-gray-200 dark:border-border-dark pt-3 mt-auto space-y-2 text-xs text-slate-600 dark:text-text-secondary">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="flex items-center gap-1">
+                                            <span>{t('Enabled Status')}:</span>
+                                            <span className="font-semibold text-slate-900 dark:text-white">
+                                                {quota.is_available === false ? t('Disabled') : t('Enabled')}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1 justify-end">
+                                            <span>{t('Token Status')}:</span>
+                                            <span className="font-semibold text-slate-900 dark:text-white">
+                                                {quota.token_invalid ? t('Token Invalid') : t('Token Normal')}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="truncate">
+                                            {t('Last Updated')}: 
+                                            <span
+                                                className="font-medium text-slate-900 dark:text-white"
+                                                title={
+                                                    formatAbsoluteTime(
+                                                        quota.last_auth_check_at || quota.updated_at,
+                                                        i18n.language
+                                                    ) || undefined
+                                                }
+                                            >
+                                                {formatRelativeTime(quota.last_auth_check_at || quota.updated_at, t)}
+                                            </span>
+                                        </span>
+                                        {quota.token_invalid && quota.last_auth_error ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setErrorDialogQuota(quota);
+                                                    setErrorCopied(false);
+                                                }}
+                                                className="shrink-0 text-primary hover:underline"
+                                            >
+                                                {t('View Error')}
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -1227,6 +1341,79 @@ export function AdminQuotas() {
                         </button>
                     </div>
                 </div>
+
+                {errorDialogQuota ? (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div
+                            className="absolute inset-0 bg-black/50"
+                            onClick={() => {
+                                setErrorDialogQuota(null);
+                                setErrorCopied(false);
+                            }}
+                        />
+                        <div className="relative w-full max-w-2xl bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-xl shadow-xl p-5 space-y-4">
+                            <div className="flex items-center justify-between gap-3">
+                                <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                                    {t('Token Error Details')}
+                                </h3>
+                                <button
+                                    type="button"
+                                    className="text-sm text-slate-500 hover:text-slate-800 dark:text-text-secondary dark:hover:text-white"
+                                    onClick={() => {
+                                        setErrorDialogQuota(null);
+                                        setErrorCopied(false);
+                                    }}
+                                >
+                                    {t('Close')}
+                                </button>
+                            </div>
+                            <div className="space-y-2 text-sm text-slate-700 dark:text-text-secondary">
+                                <div>
+                                    <span className="font-semibold text-slate-900 dark:text-white">{t('Account Key')}:</span>{' '}
+                                    <span className="break-all">{errorDialogQuota.auth_key}</span>
+                                </div>
+                                <div>
+                                    <span className="font-semibold text-slate-900 dark:text-white">{t('Recent Check Time')}:</span>{' '}
+                                    <span
+                                        title={
+                                            formatAbsoluteTime(errorDialogQuota.last_auth_check_at || null, i18n.language) ||
+                                            undefined
+                                        }
+                                    >
+                                        {formatRelativeTime(errorDialogQuota.last_auth_check_at || null, t)}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="text-sm font-semibold text-slate-900 dark:text-white">{t('Error Message')}</div>
+                                <pre className="max-h-72 overflow-auto text-xs leading-relaxed rounded-lg border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark p-3 text-slate-800 dark:text-text-secondary whitespace-pre-wrap break-words">
+                                    {errorDialogQuota.last_auth_error || '--'}
+                                </pre>
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        void handleCopyError();
+                                    }}
+                                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-dark text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-border-dark transition-colors"
+                                >
+                                    {errorCopied ? t('Copied') : t('Copy Error')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setErrorDialogQuota(null);
+                                        setErrorCopied(false);
+                                    }}
+                                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-dark text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-border-dark transition-colors"
+                                >
+                                    {t('Close')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
             </div>
         </AdminDashboardLayout>
     );
