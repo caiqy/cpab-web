@@ -758,6 +758,7 @@ const en: Record<string, string> = {
     "Quota polling interval in seconds.": "Quota polling interval in seconds.",
     "Max concurrent quota polling requests (cap 5).": "Max concurrent quota polling requests (cap 5).",
     "Auto assign proxy for new auth and API keys.": "Auto assign proxy for new auth and API keys.",
+    "Host used in local OAuth callback URLs (without scheme/port).": "Host used in local OAuth callback URLs (without scheme/port).",
     "Optional note": "Optional note",
     "Override": "Override",
     "OpenAI Chat Completions": "OpenAI Chat Completions",

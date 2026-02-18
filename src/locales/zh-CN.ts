@@ -764,6 +764,7 @@ const zhCN: Record<string, string> = {
     "Quota polling interval in seconds.": "配额轮询间隔（秒）。",
     "Max concurrent quota polling requests (cap 5).": "配额轮询最大并发请求数（上限 5）。",
     "Auto assign proxy for new auth and API keys.": "为新建的认证和 API 密钥自动分配代理。",
+    "Host used in local OAuth callback URLs (without scheme/port).": "本地 OAuth 回调 URL 使用的主机名（不含协议与端口）。",
     "Optional note": "可选备注",
     "Override": "覆盖",
     "OpenAI Chat Completions": "OpenAI Chat Completions",

@@ -107,6 +107,11 @@ const SETTINGS_CATALOG: SettingDefinition[] = [
         type: 'integer',
         description: 'Retention days for usage records (usages table).',
     },
+    {
+        key: 'OAUTH_CALLBACK_HOST',
+        type: 'string',
+        description: 'Host used in local OAuth callback URLs (without scheme/port).',
+    },
 ];
 
 const TYPE_LABELS: Record<SettingType, string> = {
@@ -131,6 +136,7 @@ const SETTING_EXAMPLES: Record<string, string> = {
     RATE_LIMIT_REDIS_DB: '0',
     RATE_LIMIT_REDIS_PREFIX: 'cpab:rl',
     USAGES_RETENTION_DAYS: '90',
+    OAUTH_CALLBACK_HOST: 'localhost',
 };
 
 const POSITIVE_INTEGER_KEYS = new Set<string>([
