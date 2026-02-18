@@ -28,6 +28,7 @@ import { AdminLogs } from './pages/admin/Logs';
 import { AdminSettings } from './pages/admin/Settings';
 import { AdminAdministrators } from './pages/admin/Administrators';
 import { AdminLogin } from './pages/admin/Login';
+import { ManualCopyDialogHost } from './components/common/ManualCopyDialogHost';
 
 function AdminEntryRedirect() {
     const isLoggedIn = Boolean(localStorage.getItem(TOKEN_KEY_ADMIN));
@@ -68,6 +69,7 @@ function App() {
                 <Route path="/admin/logs" element={<AdminLogs />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
             </Routes>
+            <ManualCopyDialogHost />
         </BrowserRouter>
     );
 }

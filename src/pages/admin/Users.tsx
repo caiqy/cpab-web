@@ -8,6 +8,7 @@ import { Icon } from '../../components/Icon';
 import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminPermissions';
 import { useStickyActionsDivider } from '../../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
+import { copyText } from '../../utils/copy';
 
 interface User {
     id: number;
@@ -853,16 +854,20 @@ function UserApiKeysModal({
 
     const handleCopy = async () => {
         if (newKeyToken) {
-            await navigator.clipboard.writeText(newKeyToken);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            const result = await copyText(newKeyToken, { source: 'AdminUsers.copyNewKeyToken' });
+            if (result.status === 'success') {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            }
         }
     };
 
     const handleCopyKeyPrefix = async (keyId: number, key: string) => {
-        await navigator.clipboard.writeText(key);
-        setCopiedKeyId(keyId);
-        setTimeout(() => setCopiedKeyId(null), 2000);
+        const result = await copyText(key, { source: 'AdminUsers.copyKeyPrefix' });
+        if (result.status === 'success') {
+            setCopiedKeyId(keyId);
+            setTimeout(() => setCopiedKeyId(null), 2000);
+        }
     };
 
     const formatDate = (dateStr: string) => new Date(dateStr).toLocaleString(locale);

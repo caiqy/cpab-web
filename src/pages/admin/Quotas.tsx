@@ -7,6 +7,7 @@ import { APIRequestError, apiFetchAdmin } from '../../api/config';
 import { Icon } from '../../components/Icon';
 import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminPermissions';
 import { useTranslation } from 'react-i18next';
+import { copyText } from '../../utils/copy';
 
 interface QuotaRecord {
     id: number;
@@ -802,6 +803,7 @@ export function AdminQuotas() {
     const [manualRefreshError, setManualRefreshError] = useState('');
     const [errorDialogQuota, setErrorDialogQuota] = useState<QuotaRecord | null>(null);
     const [errorCopied, setErrorCopied] = useState(false);
+    const [errorCopyHint, setErrorCopyHint] = useState('');
     const queryQuotaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const activeManualRefreshTaskIdRef = useRef<string>('');
 
@@ -1080,11 +1082,19 @@ export function AdminQuotas() {
         if (!errorDialogQuota?.last_auth_error) {
             return;
         }
-        try {
-            await navigator.clipboard.writeText(errorDialogQuota.last_auth_error);
+        const result = await copyText(errorDialogQuota.last_auth_error, {
+            source: 'AdminQuotas.copyError',
+        });
+        if (result.status === 'success') {
             setErrorCopied(true);
+            setErrorCopyHint('');
             window.setTimeout(() => setErrorCopied(false), 1500);
-        } catch {
+            return;
+        }
+        if (result.status === 'fallback') {
+            setErrorCopyHint(t('Copy switched to manual mode'));
+        } else {
+            setErrorCopyHint('');
             setErrorCopied(false);
         }
     };
@@ -1307,6 +1317,7 @@ export function AdminQuotas() {
                                                 onClick={() => {
                                                     setErrorDialogQuota(quota);
                                                     setErrorCopied(false);
+                                                    setErrorCopyHint('');
                                                 }}
                                                 className="shrink-0 text-primary hover:underline"
                                             >
@@ -1349,6 +1360,7 @@ export function AdminQuotas() {
                             onClick={() => {
                                 setErrorDialogQuota(null);
                                 setErrorCopied(false);
+                                setErrorCopyHint('');
                             }}
                         />
                         <div className="relative w-full max-w-2xl bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-xl shadow-xl p-5 space-y-4">
@@ -1362,6 +1374,7 @@ export function AdminQuotas() {
                                     onClick={() => {
                                         setErrorDialogQuota(null);
                                         setErrorCopied(false);
+                                        setErrorCopyHint('');
                                     }}
                                 >
                                     {t('Close')}
@@ -1405,12 +1418,16 @@ export function AdminQuotas() {
                                     onClick={() => {
                                         setErrorDialogQuota(null);
                                         setErrorCopied(false);
+                                        setErrorCopyHint('');
                                     }}
                                     className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-dark text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-border-dark transition-colors"
                                 >
                                     {t('Close')}
                                 </button>
                             </div>
+                            {errorCopyHint ? (
+                                <p className="text-sm text-slate-600 dark:text-text-secondary text-right">{errorCopyHint}</p>
+                            ) : null}
                         </div>
                     </div>
                 ) : null}

@@ -7,6 +7,7 @@ import { Icon } from '../Icon';
 import { apiFetchAdmin, TOKEN_KEY_ADMIN, USER_KEY_ADMIN } from '../../api/config';
 import { credentialToJSON, parseCreationOptions } from '../../utils/webauthn';
 import { useTranslation } from 'react-i18next';
+import { copyText } from '../../utils/copy';
 
 interface AdminDashboardLayoutProps {
     children: ReactNode;
@@ -117,11 +118,14 @@ export function AdminDashboardLayout({ children, title, subtitle }: AdminDashboa
         if (!trimmed) {
             return;
         }
-        try {
-            await navigator.clipboard.writeText(trimmed);
+        const result = await copyText(trimmed, { source: 'AdminDashboardLayout.copyText' });
+        if (result.status === 'success') {
             showToast(t('Copied'));
-        } catch (err) {
-            console.error('Failed to copy text:', err);
+            return;
+        }
+        if (result.status === 'fallback') {
+            showToast(t('Copy switched to manual mode'));
+        } else {
             setMfaError(t('Failed to copy'));
         }
     };

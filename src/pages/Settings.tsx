@@ -5,6 +5,7 @@ import { Icon } from '../components/Icon';
 import { apiFetch } from '../api/config';
 import { credentialToJSON, parseCreationOptions } from '../utils/webauthn';
 import { useTranslation } from 'react-i18next';
+import { copyText } from '../utils/copy';
 
 interface ProfileResponse {
     id: number;
@@ -115,11 +116,14 @@ export function Settings() {
         if (!trimmed) {
             return;
         }
-        try {
-            await navigator.clipboard.writeText(trimmed);
+        const result = await copyText(trimmed, { source: 'Settings.copyText' });
+        if (result.status === 'success') {
             showToast(t('Copied'));
-        } catch (err) {
-            console.error('Failed to copy text:', err);
+            return;
+        }
+        if (result.status === 'fallback') {
+            showToast(t('Copy switched to manual mode'));
+        } else {
             setMfaError(t('Failed to copy'));
         }
     };

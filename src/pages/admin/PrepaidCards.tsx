@@ -7,6 +7,7 @@ import { Icon } from '../../components/Icon';
 import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminPermissions';
 import { useStickyActionsDivider } from '../../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
+import { copyText } from '../../utils/copy';
 
 interface PrepaidCard {
     id: number;
@@ -938,8 +939,14 @@ export function AdminPrepaidCards() {
     const handleCopyBatch = async () => {
         if (batchResult.length === 0) return;
         const lines = batchResult.map((card) => `${card.card_sn},${card.password},${card.amount}`);
-        await navigator.clipboard.writeText(lines.join('\n'));
-        showToast(t('Copied to clipboard'));
+        const result = await copyText(lines.join('\n'), { source: 'AdminPrepaidCards.copyBatch' });
+        if (result.status === 'success') {
+            showToast(t('Copied to clipboard'));
+            return;
+        }
+        if (result.status === 'fallback') {
+            showToast(t('Copy switched to manual mode'));
+        }
     };
 
     const handleDelete = async (card: PrepaidCard) => {

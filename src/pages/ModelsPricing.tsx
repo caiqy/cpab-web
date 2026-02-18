@@ -3,6 +3,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { Icon } from '../components/Icon';
 import { apiFetch } from '../api/config';
 import { useTranslation } from 'react-i18next';
+import { copyText, type CopyResult } from '../utils/copy';
 
 interface ModelPricingItem {
     provider: string;
@@ -74,25 +75,11 @@ interface ToastState {
     message: string;
 }
 
-function CopyButton({ text, onCopied }: { text: string; onCopied: () => void }) {
+function CopyButton({ text, onCopied }: { text: string; onCopied: (result: CopyResult) => void }) {
     const { t } = useTranslation();
     const handleCopy = async () => {
-        try {
-            if (navigator?.clipboard?.writeText) {
-                await navigator.clipboard.writeText(text);
-            } else {
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-            }
-            onCopied();
-        } catch (err) {
-            // swallow copy errors silently
-            console.error('copy failed', err);
-        }
+        const result = await copyText(text, { source: 'ModelsPricing.copyModelName' });
+        onCopied(result);
     };
 
     return (
@@ -108,7 +95,7 @@ function CopyButton({ text, onCopied }: { text: string; onCopied: () => void }) 
     );
 }
 
-function ModelCell({ item, onCopy }: { item: GroupedItem; onCopy: () => void }) {
+function ModelCell({ item, onCopy }: { item: GroupedItem; onCopy: (result: CopyResult) => void }) {
     return (
         <div className="flex flex-col gap-1">
             <span className="text-sm font-semibold text-slate-900 dark:text-white">{item.model}</span>
@@ -119,7 +106,7 @@ function ModelCell({ item, onCopy }: { item: GroupedItem; onCopy: () => void }) 
     );
 }
 
-function PerRequestTable({ items, onCopy }: { items: GroupedItem[]; onCopy: () => void }) {
+function PerRequestTable({ items, onCopy }: { items: GroupedItem[]; onCopy: (result: CopyResult) => void }) {
     const { t } = useTranslation();
     return (
         <div className="overflow-x-auto">
@@ -157,7 +144,7 @@ function PerRequestTable({ items, onCopy }: { items: GroupedItem[]; onCopy: () =
     );
 }
 
-function TokenTable({ items, onCopy }: { items: GroupedItem[]; onCopy: () => void }) {
+function TokenTable({ items, onCopy }: { items: GroupedItem[]; onCopy: (result: CopyResult) => void }) {
     const { t } = useTranslation();
     return (
         <div className="overflow-x-auto">
@@ -213,7 +200,7 @@ function TokenTable({ items, onCopy }: { items: GroupedItem[]; onCopy: () => voi
     );
 }
 
-function UnpricedList({ items, onCopy }: { items: ModelPricingItem[]; onCopy: () => void }) {
+function UnpricedList({ items, onCopy }: { items: ModelPricingItem[]; onCopy: (result: CopyResult) => void }) {
     const { t } = useTranslation();
     if (!items.length) return null;
 
@@ -310,6 +297,19 @@ export function ModelsPricing() {
         };
     }, []);
 
+    const handleModelCopy = useCallback(
+        (result: CopyResult) => {
+            if (result.status === 'success') {
+                showToast(t('Model name copied'));
+                return;
+            }
+            if (result.status === 'fallback') {
+                showToast(t('Copy switched to manual mode'));
+            }
+        },
+        [showToast, t]
+    );
+
     return (
         <DashboardLayout
             title={t('Models')}
@@ -341,7 +341,7 @@ export function ModelsPricing() {
                         <section className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-border-dark shadow-sm overflow-hidden">
                             <PerRequestTable
                                 items={groupItems(data?.per_request || [], false)}
-                                onCopy={() => showToast(t('Model name copied'))}
+                                onCopy={handleModelCopy}
                             />
                         </section>
                     </div>
@@ -358,7 +358,7 @@ export function ModelsPricing() {
                         <section className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-border-dark shadow-sm overflow-hidden">
                             <TokenTable
                                 items={groupItems(data?.per_token || [], true)}
-                                onCopy={() => showToast(t('Model name copied'))}
+                                onCopy={handleModelCopy}
                             />
                         </section>
                     </div>
@@ -381,7 +381,7 @@ export function ModelsPricing() {
                                 </div>
                             </div>
                             <div className="p-6">
-                                <UnpricedList items={data.unpriced} onCopy={() => showToast(t('Model name copied'))} />
+                                <UnpricedList items={data.unpriced} onCopy={handleModelCopy} />
                             </div>
                         </section>
                     ) : null}

@@ -8,6 +8,7 @@ import { Icon } from '../../components/Icon';
 import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminPermissions';
 import { useStickyActionsDivider } from '../../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
+import { copyText } from '../../utils/copy';
 
 interface TypeDropdownMenuProps {
     types: string[];
@@ -1546,10 +1547,14 @@ export function AdminAuthFiles() {
         }
     };
 
-    const handleCopyUrl = () => {
-        navigator.clipboard.writeText(modalUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+    const handleCopyUrl = async () => {
+        const result = await copyText(modalUrl, { source: 'AdminAuthFiles.copyUrl' });
+        if (result.status === 'success') {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } else if (result.status === 'fallback') {
+            showToast(t('Copy switched to manual mode'));
+        }
         if (authState && authStatus === 'idle') {
             startPolling(authState);
         }

@@ -6,6 +6,7 @@ import { Icon } from '../components/Icon';
 import { apiFetch } from '../api/config';
 import { useStickyActionsDivider } from '../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
+import { copyText } from '../utils/copy';
 
 interface StatusDropdownMenuProps {
     statusFilter: string;
@@ -289,8 +290,14 @@ export function ApiKeys() {
     };
 
     const handleCopy = async (key: string) => {
-        await navigator.clipboard.writeText(key);
-        showToast(t('API Key copied'));
+        const result = await copyText(key, { source: 'ApiKeys.copyExistingKey' });
+        if (result.status === 'success') {
+            showToast(t('API Key copied'));
+            return;
+        }
+        if (result.status === 'fallback') {
+            showToast(t('Copy switched to manual mode'));
+        }
     };
 
     const totalPages = Math.ceil(total / limit);
@@ -652,9 +659,11 @@ function CreateApiKeyModal({ onClose, onCreate, newToken }: CreateApiKeyModalPro
 
     const handleCopyToken = async () => {
         if (newToken) {
-            await navigator.clipboard.writeText(newToken);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            const result = await copyText(newToken, { source: 'ApiKeys.copyNewToken' });
+            if (result.status === 'success') {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            }
         }
     };
 
