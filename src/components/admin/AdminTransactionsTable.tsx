@@ -10,11 +10,24 @@ interface Transaction {
 	timestamp: string;
 	provider: string;
 	model: string;
+	variant_origin?: string;
+	variant?: string;
 	request_time_ms: number;
 	input_tokens: number;
 	cached_tokens: number;
 	output_tokens: number;
 	cost_micros: number;
+}
+
+export function formatThinkingVariantDisplay(variantOrigin?: string, variant?: string): string {
+	const origin = (variantOrigin ?? '').trim();
+	const real = (variant ?? '').trim();
+	if (!origin && !real) return '-';
+	if (origin && real) {
+		if (origin === real) return real;
+		return `${origin} => ${real}`;
+	}
+	return real || origin || '-';
 }
 
 interface TransactionsData {
@@ -139,7 +152,12 @@ export function AdminTransactionsTable() {
 										{tx.provider || '-'}
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white font-medium">
-										{tx.model}
+										<div className="inline-flex items-center gap-2">
+											<span>{tx.model}</span>
+											<span className="inline-flex items-center px-2 py-0.5 rounded border border-gray-200 dark:border-border-dark text-[11px] font-mono text-slate-600 dark:text-text-secondary">
+												{formatThinkingVariantDisplay(tx.variant_origin, tx.variant)}
+											</span>
+										</div>
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono">
 										{formatSecondsFromMs(tx.request_time_ms)}
