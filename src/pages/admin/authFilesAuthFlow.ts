@@ -2,6 +2,9 @@ export interface TokenStartResponse {
     state: string;
     url?: string;
     method?: string;
+    verification_url?: string;
+    verification_uri?: string;
+    user_code?: string;
 }
 
 export interface AuthStatusResponse {
@@ -10,6 +13,22 @@ export interface AuthStatusResponse {
     verification_url?: string;
     user_code?: string;
     url?: string;
+}
+
+function normalizeOptionalText(value: string | undefined): string | undefined {
+    const text = typeof value === 'string' ? value.trim() : '';
+    return text || undefined;
+}
+
+export function mergeDeviceCodeField(
+    currentValue: string | undefined,
+    incomingValue: string | undefined
+): string | undefined {
+    return normalizeOptionalText(incomingValue) || normalizeOptionalText(currentValue);
+}
+
+export function hasDeviceCodeData(verificationUrl?: string, userCode?: string): boolean {
+    return !!(normalizeOptionalText(verificationUrl) || normalizeOptionalText(userCode));
 }
 
 export function normalizeTokenStartResponse(input: unknown): TokenStartResponse {
@@ -23,10 +42,20 @@ export function normalizeTokenStartResponse(input: unknown): TokenStartResponse 
     }
     const url = typeof raw.url === 'string' ? raw.url.trim() : '';
     const method = typeof raw.method === 'string' ? raw.method.trim() : '';
+    const verificationUrl = typeof raw.verification_url === 'string' ? raw.verification_url.trim() : '';
+    const verificationURI = typeof raw.verification_uri === 'string' ? raw.verification_uri.trim() : '';
+    const userCode = typeof raw.user_code === 'string' ? raw.user_code.trim() : '';
+
+    const normalizedVerificationURL = verificationUrl || verificationURI || undefined;
+    const normalizedVerificationURI = verificationURI || verificationUrl || undefined;
+
     return {
         state,
         url: url || undefined,
         method: method || undefined,
+        verification_url: normalizedVerificationURL,
+        verification_uri: normalizedVerificationURI,
+        user_code: userCode || undefined,
     };
 }
 

@@ -10,6 +10,8 @@ import { useStickyActionsDivider } from '../../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
 import { copyText } from '../../utils/copy';
 import {
+    hasDeviceCodeData,
+    mergeDeviceCodeField,
     normalizeAuthStatusResponse,
     normalizeTokenStartResponse,
 } from './authFilesAuthFlow';
@@ -442,10 +444,16 @@ const AUTH_TYPES = [
     { key: 'anthropic', label: 'Anthropic', endpoint: '/v0/admin/tokens/anthropic' },
     { key: 'antigravity', label: 'Antigravity', endpoint: '/v0/admin/tokens/antigravity' },
     { key: 'gemini-cli', label: 'Gemini CLI', endpoint: '/v0/admin/tokens/gemini' },
+    { key: 'iflow', label: 'iFlow OAuth', endpoint: '/v0/admin/tokens/iflow' },
     { key: 'kiro', label: 'Kiro', endpoint: '/v0/admin/tokens/kiro' },
+    { key: 'kimi', label: 'Kimi', endpoint: '/v0/admin/tokens/kimi' },
+    { key: 'github-copilot', label: 'GitHub Copilot', endpoint: '/v0/admin/tokens/github-copilot' },
+    { key: 'kilo', label: 'Kilo', endpoint: '/v0/admin/tokens/kilo' },
     { key: 'iflow-cookie', label: 'iFlow', endpoint: '/v0/admin/tokens/iflow-cookie' },
     { key: 'qwen', label: 'Qwen', endpoint: '/v0/admin/tokens/qwen' },
 ];
+
+const DEVICE_CODE_PROVIDER_KEYS = new Set(['kiro', 'github-copilot', 'kilo']);
 
 const OAUTH_CALLBACK_PROVIDERS: Record<string, string> = {
     codex: 'codex',
@@ -586,7 +594,7 @@ export function AdminAuthFiles() {
     const allProxySelected = proxyIds.length > 0 && proxyIds.every((id) => selectedProxyIds.has(id));
     const selectedProxyCount = selectedProxyIds.size;
     const oauthProvider = authTypeKey ? OAUTH_CALLBACK_PROVIDERS[authTypeKey] : '';
-    const isKiro = authTypeKey === 'kiro';
+    const showDeviceCodePanel = hasDeviceCodeData(deviceVerificationUrl, deviceUserCode);
     const isIFlowCookie = authTypeKey === 'iflow-cookie';
 
     useEffect(() => {
@@ -1342,8 +1350,6 @@ export function AdminAuthFiles() {
         setAuthStatus('polling');
         setPollCount(0);
         setAuthError('');
-        setDeviceVerificationUrl('');
-        setDeviceUserCode('');
         setDeviceCodeCopied(false);
 
         const poll = async () => {
@@ -1369,12 +1375,8 @@ export function AdminAuthFiles() {
                 } else if (res.status === 'device_code') {
                     setAuthStatus('polling');
                     setAuthError('');
-                    if (res.verification_url) {
-                        setDeviceVerificationUrl(res.verification_url);
-                    }
-                    if (res.user_code) {
-                        setDeviceUserCode(res.user_code);
-                    }
+                    setDeviceVerificationUrl((prev) => mergeDeviceCodeField(prev, res.verification_url) || '');
+                    setDeviceUserCode((prev) => mergeDeviceCodeField(prev, res.user_code) || '');
                     if (res.url) {
                         setModalUrl(res.url);
                     }
@@ -1571,9 +1573,20 @@ export function AdminAuthFiles() {
         try {
             const res = await apiFetchAdmin<unknown>(authType.endpoint, { method: 'POST' });
             const tokenStart = normalizeTokenStartResponse(res);
-            setModalUrl(tokenStart.url || '');
+            setModalUrl(tokenStart.url || tokenStart.verification_url || tokenStart.verification_uri || '');
             setAuthState(tokenStart.state);
-            if (typeKey === 'kiro') {
+            if (tokenStart.verification_url || tokenStart.verification_uri) {
+                setDeviceVerificationUrl(tokenStart.verification_url || tokenStart.verification_uri || '');
+            }
+            if (tokenStart.user_code) {
+                setDeviceUserCode(tokenStart.user_code);
+            }
+            const shouldStartDeviceCodePolling =
+                DEVICE_CODE_PROVIDER_KEYS.has(typeKey) ||
+                tokenStart.method === 'device_code' ||
+                hasDeviceCodeData(tokenStart.verification_url, tokenStart.user_code) ||
+                !!tokenStart.verification_uri;
+            if (shouldStartDeviceCodePolling) {
                 startPolling(tokenStart.state);
             }
         } catch (err) {
@@ -2673,7 +2686,7 @@ export function AdminAuthFiles() {
                                         </form>
                                     ) : (
                                         <>
-                                            {(!isKiro || modalUrl) && (
+                                            {(!showDeviceCodePanel || modalUrl) && (
                                                 <>
                                                     <div>
                                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -2707,10 +2720,10 @@ export function AdminAuthFiles() {
                                                 </>
                                             )}
 
-                                            {isKiro && authStatus === 'polling' && (
+                                            {showDeviceCodePanel && (
                                                 <div className="rounded-lg border border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark p-4 space-y-3">
                                                     <div className="text-sm text-gray-700 dark:text-gray-300">
-                                                        {t('Use this code to complete Kiro sign-in')}
+                                                        {t('Use this code to complete sign-in')}
                                                     </div>
                                                     {deviceVerificationUrl ? (
                                                         <>

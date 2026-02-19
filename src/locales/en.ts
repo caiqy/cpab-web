@@ -690,6 +690,8 @@ const en: Record<string, string> = {
     "User Code": "User Code",
     "Copy Code": "Copy Code",
     "Use this code to complete Kiro sign-in": "Use this code to complete Kiro sign-in",
+    "Use this code to complete sign-in": "Use this code to complete sign-in",
+    "iFlow OAuth": "iFlow OAuth",
     "Unavailable": "Unavailable",
     "Unknown": "Unknown",
     "Unselect All": "Unselect All",

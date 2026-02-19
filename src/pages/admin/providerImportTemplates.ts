@@ -5,6 +5,9 @@ export type ProviderImportKey =
     | 'antigravity'
     | 'qwen'
     | 'kiro'
+    | 'kimi'
+    | 'github-copilot'
+    | 'kilo'
     | 'iflow-cookie';
 
 export interface ProviderImportOption {
@@ -20,6 +23,9 @@ export const PROVIDER_IMPORT_OPTIONS: ProviderImportOption[] = [
     { key: 'antigravity', label: 'Antigravity', canonicalType: 'antigravity' },
     { key: 'qwen', label: 'Qwen', canonicalType: 'qwen' },
     { key: 'kiro', label: 'Kiro', canonicalType: 'kiro' },
+    { key: 'kimi', label: 'Kimi', canonicalType: 'kimi' },
+    { key: 'github-copilot', label: 'GitHub Copilot', canonicalType: 'github-copilot' },
+    { key: 'kilo', label: 'Kilo', canonicalType: 'kilo' },
     { key: 'iflow-cookie', label: 'iFlow', canonicalType: 'iflow' },
 ];
 
@@ -57,6 +63,15 @@ export const PROVIDER_IMPORT_TEMPLATES: Record<ProviderImportKey, Record<string,
         refresh_token: '<refresh_token_optional>',
         auth_method: 'builder-id',
         email: 'you@example.com',
+    },
+    kimi: {
+        access_token: '<kimi_access_token>',
+    },
+    'github-copilot': {
+        access_token: '<github_copilot_access_token>',
+    },
+    kilo: {
+        access_token: '<kilo_access_token>',
     },
     'iflow-cookie': {
         _mode_a_api_key: {

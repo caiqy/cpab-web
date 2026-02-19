@@ -39,6 +39,9 @@ const PROVIDER_ALLOWED_FIELDS: Record<ProviderImportKey, readonly string[]> = {
     antigravity: COMMON_ALLOWED_FIELDS,
     qwen: COMMON_ALLOWED_FIELDS,
     kiro: COMMON_ALLOWED_FIELDS,
+    kimi: COMMON_ALLOWED_FIELDS,
+    'github-copilot': COMMON_ALLOWED_FIELDS,
+    kilo: COMMON_ALLOWED_FIELDS,
     'iflow-cookie': COMMON_ALLOWED_FIELDS,
 };
 

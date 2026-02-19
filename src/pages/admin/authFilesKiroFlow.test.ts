@@ -16,4 +16,10 @@ describe('normalizeTokenStartResponse', () => {
 		expect(out.url).toBe('https://example.com');
 		expect(out.method).toBeUndefined();
 	});
+
+	it('supports providers that return state and url only', () => {
+		const out = normalizeTokenStartResponse({ state: 's3', url: 'https://example.com/device' });
+		expect(out.state).toBe('s3');
+		expect(out.url).toBe('https://example.com/device');
+	});
 });

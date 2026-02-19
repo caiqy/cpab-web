@@ -695,6 +695,8 @@ const zhCN: Record<string, string> = {
     "User Code": "用户验证码",
     "Copy Code": "复制验证码",
     "Use this code to complete Kiro sign-in": "请使用此验证码完成 Kiro 登录",
+    "Use this code to complete sign-in": "请使用此验证码完成登录",
+    "iFlow OAuth": "iFlow OAuth",
     "Unavailable": "不可用",
     "Unknown": "未知",
     "Unselect All": "全不选",
