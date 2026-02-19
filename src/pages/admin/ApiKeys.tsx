@@ -89,29 +89,36 @@ function DropdownMenu({ anchorId, options, selected, menuWidth, onSelect, onClos
     );
 }
 
-const PROVIDER_OPTIONS = [
-    { labelKey: 'Gemini', value: 'gemini' },
+export const API_KEYS_PROVIDER_OPTIONS = [
+    { labelKey: 'AI Studio（Gemini API Key）', value: 'gemini' },
+    { labelKey: 'Vertex (API Key)', value: 'vertex' },
     { labelKey: 'Codex', value: 'codex' },
     { labelKey: 'Claude Code', value: 'claude' },
     { labelKey: 'OpenAI Chat Completions', value: 'openai-compatibility' },
 ];
 
-function buildProviderOptions(t: Translate): { label: string; value: string }[] {
-    return PROVIDER_OPTIONS.map((opt) => ({ value: opt.value, label: t(opt.labelKey) }));
+export function buildProviderOptions(t: Translate): { label: string; value: string }[] {
+    return API_KEYS_PROVIDER_OPTIONS.map((opt) => ({ value: opt.value, label: t(opt.labelKey) }));
 }
 
-function getProviderLabel(provider: string, t: Translate): string {
+export function getProviderLabel(provider: string, t: Translate): string {
     const normalized = provider.trim().toLowerCase();
-    const match = PROVIDER_OPTIONS.find((opt) => opt.value === normalized);
+    const match = API_KEYS_PROVIDER_OPTIONS.find((opt) => opt.value === normalized);
     if (match) {
         return t(match.labelKey);
     }
     return provider || t('Unknown');
 }
 
+export function requiresBaseURL(provider: string): boolean {
+    const normalized = provider.trim().toLowerCase();
+    return normalized === 'openai-compatibility' || normalized === 'codex' || normalized === 'vertex';
+}
+
 function getProviderStyle(provider: string): string {
     const colors: Record<string, string> = {
         gemini: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-100 dark:border-blue-800',
+        vertex: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 border-cyan-100 dark:border-cyan-800',
         codex: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800',
         claude: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-100 dark:border-amber-800',
         'openai-compatibility': 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800',
@@ -271,7 +278,9 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
             return;
         }
         const normalizedName = name.trim();
+        const normalizedProvider = provider.trim().toLowerCase();
         const isOpenAICompat = provider === 'openai-compatibility';
+        const isVertex = normalizedProvider === 'vertex';
         if (!normalizedName) {
             setError(t(isOpenAICompat ? 'Provider name is required.' : 'Name is required.'));
             return;
@@ -286,8 +295,14 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
                 setError(t('API key is required.'));
                 return;
             }
-            if (provider === 'codex' && !baseURL.trim()) {
-                setError(t('Base URL is required for Codex.'));
+            if (requiresBaseURL(provider) && !baseURL.trim()) {
+                if (normalizedProvider === 'codex') {
+                    setError(t('Base URL is required for Codex.'));
+                } else if (isVertex) {
+                    setError(t('Base URL is required for Vertex.'));
+                } else {
+                    setError(t('Base URL is required.'));
+                }
                 return;
             }
         }
@@ -323,8 +338,8 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
             proxy_url: proxyURL.trim(),
             headers: Object.keys(normalizedHeaders).length ? normalizedHeaders : undefined,
             models: normalizedModels,
-            excluded_models: excludedModels,
-            api_key_entries: apiKeyEntries,
+            excluded_models: isOpenAICompat || isVertex ? undefined : excludedModels,
+            api_key_entries: isOpenAICompat ? apiKeyEntries : undefined,
         };
 
         setSubmitting(true);
@@ -600,7 +615,7 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
                                 className="w-full px-4 py-2.5 text-sm font-mono bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg text-slate-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                             />
                         </div>
-                    ) : (
+                    ) : provider !== 'vertex' ? (
                         <div>
                             <div className="flex items-center justify-between mb-1.5">
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -643,7 +658,7 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
                                 ))}
                             </div>
                         </div>
-                    )}
+                    ) : null}
                 </div>
                 <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-border-dark shrink-0">
                     <button
