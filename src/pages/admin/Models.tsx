@@ -9,6 +9,11 @@ import { apiFetchAdmin } from '../../api/config';
 import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminPermissions';
 import { useStickyActionsDivider } from '../../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
+import {
+    toProviderDropdownOptions,
+    type AdminProviderCatalogResponse,
+    type ProviderDropdownOption,
+} from './providerCatalog';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -232,20 +237,6 @@ function normalizeOpenAICompatProviderKey(name: string): string {
     return trimmed ? trimmed.toLowerCase() : 'openai-compatibility';
 }
 
-const PROVIDER_OPTIONS = [
-    { labelKey: 'Gemini CLI', value: 'gemini-cli' },
-    { labelKey: 'Antigravity', value: 'antigravity' },
-    { labelKey: 'Codex', value: 'codex' },
-    { labelKey: 'Claude Code', value: 'claude' },
-    { labelKey: 'iFlow', value: 'iflow' },
-    { labelKey: 'Vertex', value: 'vertex' },
-    { labelKey: 'Qwen', value: 'qwen' },
-];
-
-function buildProviderOptions(t: Translate): { label: string; value: string }[] {
-    return PROVIDER_OPTIONS.map((opt) => ({ value: opt.value, label: t(opt.labelKey) }));
-}
-
 const MODEL_MAPPING_SELECTOR_OPTIONS = [
     { labelKey: 'Round Robin', value: 0 },
     { labelKey: 'Fill First', value: 1 },
@@ -269,11 +260,11 @@ interface CreateModalProps {
     onSuccess: () => void;
     canLoadModels: boolean;
     userGroups: UserGroup[];
+    providerOptions: ProviderDropdownOption[];
 }
 
-function CreateModal({ onClose, onSuccess, canLoadModels, userGroups }: CreateModalProps) {
+function CreateModal({ onClose, onSuccess, canLoadModels, userGroups, providerOptions }: CreateModalProps) {
     const { t } = useTranslation();
-    const providerOptions = buildProviderOptions(t);
     const selectorOptions = buildModelMappingSelectorOptions(t);
     const [provider, setProvider] = useState('');
     const [modelName, setModelName] = useState('');
@@ -366,7 +357,9 @@ function CreateModal({ onClose, onSuccess, canLoadModels, userGroups }: CreateMo
         }
     };
 
-    const selectedProviderLabel = providerOptions.find((p) => p.value === provider)?.label || t('Select Provider');
+    const selectedProviderLabel =
+        providerOptions.find((p) => p.value === provider)?.label ||
+        (providerOptions.length > 0 ? t('Select Provider') : t('No providers available'));
     const selectedSelectorLabel = getModelMappingSelectorLabel(selector, t);
 
     return (
@@ -393,13 +386,19 @@ function CreateModal({ onClose, onSuccess, canLoadModels, userGroups }: CreateMo
                             <button
                                 ref={providerBtnRef}
                                 type="button"
-                                onClick={() => setProviderDropdownOpen(!providerDropdownOpen)}
-                                className="w-full flex items-center justify-between px-4 py-2.5 text-sm bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg text-slate-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                disabled={providerOptions.length === 0}
+                                onClick={() => {
+                                    if (providerOptions.length === 0) {
+                                        return;
+                                    }
+                                    setProviderDropdownOpen(!providerDropdownOpen);
+                                }}
+                                className="w-full flex items-center justify-between px-4 py-2.5 text-sm bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg text-slate-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <span className={provider ? '' : 'text-gray-400'}>{selectedProviderLabel}</span>
                                 <Icon name="expand_more" size={18} />
                             </button>
-                            {providerDropdownOpen && (
+                            {providerDropdownOpen && providerOptions.length > 0 && (
                                 <DropdownPortal
                                     anchorRef={providerBtnRef}
                                     options={providerOptions}
@@ -636,11 +635,11 @@ interface EditModalProps {
     onSuccess: (updated: ModelMapping) => void;
     canLoadModels: boolean;
     userGroups: UserGroup[];
+    providerOptions: ProviderDropdownOption[];
 }
 
-function EditModal({ mapping, onClose, onSuccess, canLoadModels, userGroups }: EditModalProps) {
+function EditModal({ mapping, onClose, onSuccess, canLoadModels, userGroups, providerOptions }: EditModalProps) {
     const { t } = useTranslation();
-    const providerOptions = buildProviderOptions(t);
     const selectorOptions = buildModelMappingSelectorOptions(t);
     const [provider, setProvider] = useState(mapping.provider);
     const [modelName, setModelName] = useState(mapping.model_name);
@@ -741,7 +740,10 @@ function EditModal({ mapping, onClose, onSuccess, canLoadModels, userGroups }: E
         }
     };
 
-    const selectedProviderLabel = providerOptions.find((p) => p.value === provider)?.label || provider;
+    const selectedProviderLabel =
+        providerOptions.find((p) => p.value === provider)?.label ||
+        provider ||
+        (providerOptions.length > 0 ? t('Select Provider') : t('No providers available'));
     const selectedSelectorLabel = getModelMappingSelectorLabel(selector, t);
 
     return (
@@ -767,13 +769,19 @@ function EditModal({ mapping, onClose, onSuccess, canLoadModels, userGroups }: E
                             <button
                                 ref={providerBtnRef}
                                 type="button"
-                                onClick={() => setProviderDropdownOpen(!providerDropdownOpen)}
-                                className="w-full flex items-center justify-between px-4 py-2.5 text-sm bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg text-slate-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                disabled={providerOptions.length === 0}
+                                onClick={() => {
+                                    if (providerOptions.length === 0) {
+                                        return;
+                                    }
+                                    setProviderDropdownOpen(!providerDropdownOpen);
+                                }}
+                                className="w-full flex items-center justify-between px-4 py-2.5 text-sm bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg text-slate-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <span>{selectedProviderLabel}</span>
                                 <Icon name="expand_more" size={18} />
                             </button>
-                            {providerDropdownOpen && (
+                            {providerDropdownOpen && providerOptions.length > 0 && (
                                 <DropdownPortal
                                     anchorRef={providerBtnRef}
                                     options={providerOptions}
@@ -1679,6 +1687,9 @@ export function AdminModels() {
     const canListAvailableModels = hasPermission(
         buildAdminPermissionKey('GET', '/v0/admin/model-mappings/available-models')
     );
+    const canListModelMappingProviders = hasPermission(
+        buildAdminPermissionKey('GET', '/v0/admin/model-mappings/providers')
+    );
     const canListProviderApiKeys = hasPermission(buildAdminPermissionKey('GET', '/v0/admin/provider-api-keys'));
     const canCreateMapping = hasPermission(buildAdminPermissionKey('POST', '/v0/admin/model-mappings'));
     const canUpdateMapping = hasPermission(buildAdminPermissionKey('PUT', '/v0/admin/model-mappings/:id'));
@@ -1705,6 +1716,8 @@ export function AdminModels() {
     const [mappings, setMappings] = useState<ModelMapping[]>([]);
     const [loading, setLoading] = useState(true);
     const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
+    const [providerCatalogOptions, setProviderCatalogOptions] = useState<ProviderDropdownOption[]>([]);
+    const [providerCatalogError, setProviderCatalogError] = useState('');
     const [providerApiKeys, setProviderApiKeys] = useState<ProviderApiKeyRef[]>([]);
     const [providerFilter, setProviderFilter] = useState('');
     const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
@@ -1752,6 +1765,27 @@ export function AdminModels() {
             .then((res) => setUserGroups(res.user_groups || []))
             .catch(console.error);
     }, [canListUserGroups]);
+
+    const fetchProviderCatalog = useCallback(async () => {
+        if (!canListModelMappingProviders) {
+            setProviderCatalogOptions([]);
+            setProviderCatalogError(t('No permission to load providers'));
+            return;
+        }
+        try {
+            const res = await apiFetchAdmin<AdminProviderCatalogResponse>('/v0/admin/model-mappings/providers');
+            setProviderCatalogOptions(toProviderDropdownOptions(res.providers || [], (key) => t(key)));
+            setProviderCatalogError('');
+        } catch (err) {
+            console.error('Failed to fetch model mapping providers:', err);
+            setProviderCatalogOptions([]);
+            setProviderCatalogError(t('Failed to load providers.'));
+        }
+    }, [canListModelMappingProviders, t]);
+
+    useEffect(() => {
+        fetchProviderCatalog();
+    }, [fetchProviderCatalog]);
 
     const fetchProviderApiKeys = useCallback(async () => {
         if (!canListProviderApiKeys) {
@@ -1812,6 +1846,18 @@ export function AdminModels() {
             .forEach((opt) => addOption(opt));
 
         const providerKeysCoveredByApiKeys = new Set<string>(apiKeyOptions.map((opt) => opt.providerKey));
+
+        providerCatalogOptions.forEach((opt) => {
+            const providerKey = opt.value.trim().toLowerCase();
+            if (!providerKey || providerKeysCoveredByApiKeys.has(providerKey)) {
+                return;
+            }
+            addOption({
+                value: `provider:${providerKey}`,
+                label: opt.label,
+                providerKey,
+            });
+        });
 
         Array.from(new Set(mappings.map((m) => m.provider)))
             .filter((p) => p.trim() !== '')
@@ -2062,6 +2108,11 @@ export function AdminModels() {
             subtitle={t('Manage model name mappings and routing')}
         >
             <div className="space-y-6">
+                {providerCatalogError && (
+                    <div className="rounded-lg border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+                        {providerCatalogError}
+                    </div>
+                )}
                 {canCreateMapping && (
                     <div className="flex justify-end">
                             <button
@@ -2353,6 +2404,7 @@ export function AdminModels() {
                     onSuccess={fetchData}
                     canLoadModels={canListAvailableModels}
                     userGroups={userGroups}
+                    providerOptions={providerCatalogOptions}
                 />
             )}
 
@@ -2363,6 +2415,7 @@ export function AdminModels() {
                     onSuccess={handleEditSave}
                     canLoadModels={canListAvailableModels}
                     userGroups={userGroups}
+                    providerOptions={providerCatalogOptions}
                 />
             )}
 

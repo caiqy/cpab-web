@@ -7,6 +7,11 @@ import { Icon } from '../../components/Icon';
 import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminPermissions';
 import { useStickyActionsDivider } from '../../utils/stickyActionsDivider';
 import { useTranslation } from 'react-i18next';
+import {
+    toProviderDropdownOptions,
+    type AdminProviderCatalogResponse,
+    type ProviderDropdownOption,
+} from './providerCatalog';
 
 interface BillingRule {
     id: number;
@@ -61,6 +66,7 @@ interface BillingRuleModalProps {
     initialData: BillingRuleFormData;
     authGroups: GroupOption[];
     userGroups: GroupOption[];
+    providerOptions: ProviderDropdownOption[];
     canListProviderApiKeys: boolean;
     canLoadModelReferencePrice: boolean;
     submitting: boolean;
@@ -77,16 +83,6 @@ const BILLING_TYPE_LABELS: Record<number, string> = {
 
 const inputClassName =
     'w-full px-4 py-2.5 text-sm bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg text-slate-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent';
-
-const PROVIDER_OPTIONS = [
-    { label: 'Gemini CLI', value: 'gemini-cli' },
-    { label: 'Antigravity', value: 'antigravity' },
-    { label: 'Codex', value: 'codex' },
-    { label: 'Claude Code', value: 'claude' },
-    { label: 'iFlow', value: 'iflow' },
-    { label: 'Vertex', value: 'vertex' },
-    { label: 'Qwen', value: 'qwen' },
-];
 
 interface GroupOption {
     id: number;
@@ -456,6 +452,7 @@ function BillingRuleModal({
     initialData,
     authGroups,
     userGroups,
+    providerOptions,
     canListProviderApiKeys,
     canLoadModelReferencePrice,
     submitting,
@@ -551,22 +548,22 @@ function BillingRuleModal({
         return out;
     }, [apiKeyProviders, canListProviderApiKeys]);
 
-    const providerOptions = useMemo(() => {
+    const mergedProviderOptions = useMemo(() => {
         const labels: Record<string, string> = {
             gemini: 'Gemini',
             codex: 'Codex',
             claude: 'Claude Code',
             'openai-compatibility': 'OpenAI Chat Completions',
         };
-        const next: DropdownOption[] = [...PROVIDER_OPTIONS];
+        const next: DropdownOption[] = [...providerOptions];
         const seen = new Set(next.map((opt) => opt.value));
         Object.keys(apiKeyProviderModels).forEach((provider) => {
             if (!provider || seen.has(provider)) return;
-            next.push({ label: labels[provider] || provider, value: provider });
+            next.push({ label: t(labels[provider] || provider), value: provider });
             seen.add(provider);
         });
         return next;
-    }, [apiKeyProviderModels]);
+    }, [apiKeyProviderModels, providerOptions, t]);
 
     const resolvedModels = useMemo(() => {
         if (!formData.provider) {
@@ -815,19 +812,28 @@ function BillingRuleModal({
                             <button
                                 ref={providerBtnRef}
                                 type="button"
-                                    onClick={() => setProviderDropdownOpen(!providerDropdownOpen)}
-                                    className="w-full flex items-center justify-between px-4 py-2.5 text-sm bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg text-slate-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                    disabled={mergedProviderOptions.length === 0}
+                                    onClick={() => {
+                                        if (mergedProviderOptions.length === 0) {
+                                            return;
+                                        }
+                                        setProviderDropdownOpen(!providerDropdownOpen);
+                                    }}
+                                    className="w-full flex items-center justify-between px-4 py-2.5 text-sm bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg text-slate-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     <span className={formData.provider ? '' : 'text-gray-400'}>
-                                        {providerOptions.find((p) => p.value === formData.provider)?.label ||
-                                            t('Select Provider')}
+                                        {mergedProviderOptions.find((p) => p.value === formData.provider)?.label ||
+                                            formData.provider ||
+                                            (mergedProviderOptions.length > 0
+                                                ? t('Select Provider')
+                                                : t('No providers available'))}
                                     </span>
                                     <Icon name="expand_more" size={18} />
                                 </button>
-                                {providerDropdownOpen && (
+                                {providerDropdownOpen && mergedProviderOptions.length > 0 && (
                                     <DropdownPortal
                                         anchorRef={providerBtnRef}
-                                        options={providerOptions}
+                                        options={mergedProviderOptions}
                                         selected={formData.provider}
                                         onSelect={(val) => {
                                             setFormData((prev) => ({
@@ -1384,6 +1390,9 @@ export function AdminBillingRules() {
     const canLoadModelReferencePrice = hasPermission(
         buildAdminPermissionKey('GET', '/v0/admin/model-references/price')
     );
+    const canListModelMappingProviders = hasPermission(
+        buildAdminPermissionKey('GET', '/v0/admin/model-mappings/providers')
+    );
     const canBatchImport = hasPermission(
         buildAdminPermissionKey('POST', '/v0/admin/billing-rules/batch-import')
     );
@@ -1396,6 +1405,8 @@ export function AdminBillingRules() {
     const [submitting, setSubmitting] = useState(false);
     const [authGroups, setAuthGroups] = useState<GroupOption[]>([]);
     const [userGroups, setUserGroups] = useState<GroupOption[]>([]);
+    const [providerCatalogOptions, setProviderCatalogOptions] = useState<ProviderDropdownOption[]>([]);
+    const [providerCatalogError, setProviderCatalogError] = useState('');
     const [batchImportOpen, setBatchImportOpen] = useState(false);
     const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
     const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1413,8 +1424,28 @@ export function AdminBillingRules() {
     const providerFilterBtnRef = useRef<HTMLButtonElement>(null);
 
     const providerFilterOptions = useMemo(() => {
-        return PROVIDER_OPTIONS.map((p) => ({ id: p.value, name: p.label }));
-    }, []);
+        const options: { id: string; name: string }[] = [];
+        const seen = new Set<string>();
+
+        providerCatalogOptions.forEach((item) => {
+            const id = item.value.trim().toLowerCase();
+            if (!id || seen.has(id)) {
+                return;
+            }
+            seen.add(id);
+            options.push({ id, name: item.label });
+        });
+
+        Array.from(new Set(rules.map((rule) => rule.provider.trim().toLowerCase())))
+            .filter((id) => id && !seen.has(id))
+            .sort((a, b) => a.localeCompare(b))
+            .forEach((id) => {
+                seen.add(id);
+                options.push({ id, name: id });
+            });
+
+        return options;
+    }, [providerCatalogOptions, rules]);
 
     const showToast = useCallback((message: string) => {
         if (toastTimeoutRef.current) {
@@ -1466,6 +1497,28 @@ export function AdminBillingRules() {
     useEffect(() => {
         fetchGroups();
     }, [fetchGroups]);
+
+    const fetchProviderCatalog = useCallback(async () => {
+        if (!canListModelMappingProviders) {
+            setProviderCatalogOptions([]);
+            setProviderCatalogError(t('No permission to load providers'));
+            return;
+        }
+
+        try {
+            const res = await apiFetchAdmin<AdminProviderCatalogResponse>('/v0/admin/model-mappings/providers');
+            setProviderCatalogOptions(toProviderDropdownOptions(res.providers || [], (key) => t(key)));
+            setProviderCatalogError('');
+        } catch (err) {
+            console.error('Failed to fetch provider catalog:', err);
+            setProviderCatalogOptions([]);
+            setProviderCatalogError(t('Failed to load providers.'));
+        }
+    }, [canListModelMappingProviders, t]);
+
+    useEffect(() => {
+        fetchProviderCatalog();
+    }, [fetchProviderCatalog]);
 
     const filteredRules = useMemo(() => {
         let result = rules;
@@ -1645,6 +1698,11 @@ export function AdminBillingRules() {
     return (
         <AdminDashboardLayout title={t('Billing Rules')} subtitle={t('Manage pricing rules for usage')}>
             <div className="space-y-6">
+                {providerCatalogError && (
+                    <div className="rounded-lg border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+                        {providerCatalogError}
+                    </div>
+                )}
                 {canCreateRule && (
                     <div className="flex justify-end gap-2">
                         {canBatchImport && (
@@ -1989,6 +2047,7 @@ export function AdminBillingRules() {
                     initialData={buildFormData()}
                     authGroups={authGroups}
                     userGroups={userGroups}
+                    providerOptions={providerCatalogOptions}
                     canListProviderApiKeys={canListProviderApiKeys}
                     canLoadModelReferencePrice={canLoadModelReferencePrice}
                     submitting={submitting}
@@ -2002,6 +2061,7 @@ export function AdminBillingRules() {
                     initialData={buildFormData(editRule)}
                     authGroups={authGroups}
                     userGroups={userGroups}
+                    providerOptions={providerCatalogOptions}
                     canListProviderApiKeys={canListProviderApiKeys}
                     canLoadModelReferencePrice={canLoadModelReferencePrice}
                     submitting={submitting}
