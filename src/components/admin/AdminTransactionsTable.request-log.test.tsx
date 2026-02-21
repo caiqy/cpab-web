@@ -67,7 +67,7 @@ describe('AdminTransactionsTable request log', () => {
         expect(await screen.findByLabelText('Request log')).toBeInTheDocument();
     });
 
-    it('requests request-log endpoint and shows error text on failure', async () => {
+    it('requests request-log endpoint and shows top-right toast on failure', async () => {
         const user = userEvent.setup();
 
         mockedApiFetchAdmin
@@ -108,7 +108,48 @@ describe('AdminTransactionsTable request log', () => {
             );
         });
 
-        expect(await screen.findByText('mock request log failed')).toBeInTheDocument();
+        const toast = await screen.findByRole('status');
+        expect(toast).toHaveTextContent('mock request log failed');
+        expect(toast).toHaveClass('fixed', 'top-4', 'right-4');
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('does not open dialog when request-log request fails', async () => {
+        const user = userEvent.setup();
+
+        mockedApiFetchAdmin
+            .mockResolvedValueOnce({
+                transactions: [
+                    {
+                        id: 1,
+                        request_id: 'req-1',
+                        username: 'alice',
+                        status: 'ok',
+                        status_type: 'success',
+                        timestamp: '2026-02-21T10:00:00Z',
+                        provider: 'openai',
+                        model: 'gpt-5',
+                        variant_origin: 'high',
+                        variant: 'high',
+                        request_time_ms: 1200,
+                        input_tokens: 10,
+                        cached_tokens: 2,
+                        output_tokens: 8,
+                        cost_micros: 1234,
+                    },
+                ],
+                total: 1,
+                page: 1,
+                page_size: 10,
+            })
+            .mockRejectedValueOnce(new Error('mock request log failed'));
+
+        render(<AdminTransactionsTable />);
+
+        await user.click(await screen.findByLabelText('Request log'));
+
+        expect(await screen.findByRole('status')).toHaveTextContent('mock request log failed');
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
     it('shows request and response text when request-log succeeds', async () => {
@@ -148,6 +189,9 @@ describe('AdminTransactionsTable request log', () => {
 
         await user.click(await screen.findByLabelText('Request log'));
 
+        const dialog = await screen.findByRole('dialog');
+        expect(dialog.parentElement).toHaveClass('fixed', 'inset-0');
+        expect(screen.getByTestId('request-log-modal-shell')).toHaveClass('w-screen', 'h-screen');
         expect(await screen.findByText('Request')).toBeInTheDocument();
         expect(await screen.findByText('Response')).toBeInTheDocument();
         expect(await screen.findByText(/"foo": "bar"/)).toBeInTheDocument();

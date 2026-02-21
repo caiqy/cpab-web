@@ -65,7 +65,7 @@ export function AdminTransactionsTable() {
     const [requestLogOpen, setRequestLogOpen] = useState(false);
     const [requestLogRequest, setRequestLogRequest] = useState('');
     const [requestLogResponse, setRequestLogResponse] = useState('');
-    const [requestLogError, setRequestLogError] = useState('');
+    const [requestLogToast, setRequestLogToast] = useState('');
     const requestLogTitleId = 'admin-transactions-request-log-title';
     const requestLogCloseButtonRef = useRef<HTMLButtonElement | null>(null);
     const requestLogTriggerButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -139,6 +139,17 @@ export function AdminTransactionsTable() {
     }, [requestLogOpen]);
 
     useEffect(() => {
+        if (!requestLogToast) return;
+        const timer = window.setTimeout(() => {
+            setRequestLogToast('');
+        }, 4000);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [requestLogToast]);
+
+    useEffect(() => {
         if (!requestLogOpen) return;
 
         const onKeyDown = (event: KeyboardEvent) => {
@@ -160,8 +171,8 @@ export function AdminTransactionsTable() {
         const requestId = activeRequestLogIdRef.current + 1;
         activeRequestLogIdRef.current = requestId;
 
-        setRequestLogOpen(true);
-        setRequestLogError('');
+        setRequestLogOpen(false);
+        setRequestLogToast('');
         setRequestLogRequest('');
         setRequestLogResponse('');
 
@@ -170,11 +181,12 @@ export function AdminTransactionsTable() {
                 if (requestId !== activeRequestLogIdRef.current) return;
                 setRequestLogRequest(formatRawLog(res.api_request_raw));
                 setRequestLogResponse(formatRawLog(res.api_response_raw));
+                setRequestLogOpen(true);
             })
             .catch((error) => {
                 if (requestId !== activeRequestLogIdRef.current) return;
                 const message = error instanceof Error ? error.message : String(error);
-                setRequestLogError(message);
+                setRequestLogToast(message);
             });
     };
 
@@ -347,9 +359,10 @@ export function AdminTransactionsTable() {
 			</div>
 
 			{requestLogOpen ? (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+				<div className="fixed inset-0 z-50 bg-black/50">
 					<div
-						className="w-full max-w-5xl rounded-xl border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-dark shadow-xl"
+						data-testid="request-log-modal-shell"
+						className="w-screen h-screen border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-dark shadow-xl flex flex-col"
 						role="dialog"
 						aria-modal="true"
 						aria-labelledby={requestLogTitleId}
@@ -365,28 +378,36 @@ export function AdminTransactionsTable() {
 								<Icon name="close" size={18} />
 							</button>
 						</div>
-						<div className="p-6 space-y-4">
-							{requestLogError ? (
-								<div className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">
-									{requestLogError}
-								</div>
-							) : null}
-							<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-								<div>
+						<div className="p-6 flex-1 min-h-0 overflow-auto">
+							<div className="grid grid-cols-1 gap-4 md:grid-cols-2 h-full">
+								<div className="flex flex-col min-h-0">
 									<div className="mb-2 text-sm font-semibold text-slate-700 dark:text-white">Request</div>
-									<pre className="min-h-48 max-h-96 overflow-auto rounded-lg border border-gray-200 dark:border-border-dark bg-slate-50 dark:bg-background-dark p-3 text-xs text-slate-700 dark:text-text-secondary whitespace-pre-wrap break-all">
+									<pre className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-border-dark bg-slate-50 dark:bg-background-dark p-3 text-xs text-slate-700 dark:text-text-secondary whitespace-pre-wrap break-all min-h-48">
 										{requestLogRequest || '-'}
 									</pre>
 								</div>
-								<div>
+								<div className="flex flex-col min-h-0">
 									<div className="mb-2 text-sm font-semibold text-slate-700 dark:text-white">Response</div>
-									<pre className="min-h-48 max-h-96 overflow-auto rounded-lg border border-gray-200 dark:border-border-dark bg-slate-50 dark:bg-background-dark p-3 text-xs text-slate-700 dark:text-text-secondary whitespace-pre-wrap break-all">
+									<pre className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-border-dark bg-slate-50 dark:bg-background-dark p-3 text-xs text-slate-700 dark:text-text-secondary whitespace-pre-wrap break-all min-h-48">
 										{requestLogResponse || '-'}
 									</pre>
 								</div>
 							</div>
 						</div>
 					</div>
+				</div>
+			) : null}
+
+			{requestLogToast ? (
+				<div role="status" className="fixed top-4 right-4 z-[60] min-w-72 max-w-[40rem] rounded-lg border border-red-200 bg-red-50 text-red-700 px-4 py-3 shadow-lg flex items-start gap-3">
+					<span className="flex-1 text-sm break-all">{requestLogToast}</span>
+					<button
+						onClick={() => setRequestLogToast('')}
+						aria-label={t('Close')}
+						className="inline-flex items-center justify-center p-1 rounded border border-red-200 hover:bg-red-100"
+					>
+						<Icon name="close" size={16} />
+					</button>
 				</div>
 			) : null}
 		</div>
