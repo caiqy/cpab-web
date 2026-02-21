@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../Icon';
 import { apiFetchAdmin } from '../../api/config';
 import { useTranslation } from 'react-i18next';
 
 interface Transaction {
+	id: number | string;
+	request_id: string;
 	username: string;
 	status: string;
 	status_type: 'success' | 'error';
@@ -37,6 +39,11 @@ interface TransactionsData {
     page_size: number;
 }
 
+interface RequestLogData {
+    api_request_raw?: unknown;
+    api_response_raw?: unknown;
+}
+
 function formatTokens(tokens: number): string {
     if (tokens === 0) return '0';
     return tokens.toLocaleString();
@@ -54,11 +61,21 @@ export function AdminTransactionsTable() {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [loading, setLoading] = useState(true);
+    const [listError, setListError] = useState('');
+    const [requestLogOpen, setRequestLogOpen] = useState(false);
+    const [requestLogRequest, setRequestLogRequest] = useState('');
+    const [requestLogResponse, setRequestLogResponse] = useState('');
+    const [requestLogError, setRequestLogError] = useState('');
+    const requestLogTitleId = 'admin-transactions-request-log-title';
+    const requestLogCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+    const requestLogTriggerButtonRef = useRef<HTMLButtonElement | null>(null);
+    const activeRequestLogIdRef = useRef(0);
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     useEffect(() => {
         setLoading(true);
+        setListError('');
         const params = new URLSearchParams();
         params.set('page', page.toString());
         params.set('page_size', pageSize.toString());
@@ -68,7 +85,13 @@ export function AdminTransactionsTable() {
                 setTransactions(res.transactions || []);
                 setTotal(res.total ?? 0);
             })
-            .catch(console.error)
+            .catch((error) => {
+                console.error(error);
+                const message = error instanceof Error ? error.message : String(error);
+                setListError(message);
+                setTransactions([]);
+                setTotal(0);
+            })
             .finally(() => setLoading(false));
     }, [page, pageSize]);
 
@@ -80,6 +103,80 @@ export function AdminTransactionsTable() {
 
     const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
     const to = total === 0 ? 0 : Math.min(page * pageSize, total);
+
+    const formatRawLog = (value: unknown): string => {
+        if (typeof value === 'string') {
+            return value || '-';
+        }
+        if (value === null || value === undefined) {
+            return '-';
+        }
+        try {
+            return JSON.stringify(value, null, 2);
+        } catch {
+            return String(value);
+        }
+    };
+
+    const closeRequestLog = () => {
+        setRequestLogOpen(false);
+        activeRequestLogIdRef.current += 1;
+
+        const triggerButton = requestLogTriggerButtonRef.current;
+        if (triggerButton) {
+            window.setTimeout(() => {
+                triggerButton.focus();
+            }, 0);
+        }
+    };
+
+    useEffect(() => {
+        if (!requestLogOpen) return;
+
+        window.setTimeout(() => {
+            requestLogCloseButtonRef.current?.focus();
+        }, 0);
+    }, [requestLogOpen]);
+
+    useEffect(() => {
+        if (!requestLogOpen) return;
+
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeRequestLog();
+            }
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => {
+            window.removeEventListener('keydown', onKeyDown);
+        };
+    }, [requestLogOpen]);
+
+    const openRequestLog = (tx: Transaction, triggerButton: HTMLButtonElement) => {
+        requestLogTriggerButtonRef.current = triggerButton;
+
+        const requestId = activeRequestLogIdRef.current + 1;
+        activeRequestLogIdRef.current = requestId;
+
+        setRequestLogOpen(true);
+        setRequestLogError('');
+        setRequestLogRequest('');
+        setRequestLogResponse('');
+
+        apiFetchAdmin<RequestLogData>(`/v0/admin/dashboard/transactions/${tx.id}/request-log`)
+            .then((res) => {
+                if (requestId !== activeRequestLogIdRef.current) return;
+                setRequestLogRequest(formatRawLog(res.api_request_raw));
+                setRequestLogResponse(formatRawLog(res.api_response_raw));
+            })
+            .catch((error) => {
+                if (requestId !== activeRequestLogIdRef.current) return;
+                const message = error instanceof Error ? error.message : String(error);
+                setRequestLogError(message);
+            });
+    };
 
 	return (
 		<div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-border-dark shadow-sm overflow-hidden">
@@ -94,6 +191,11 @@ export function AdminTransactionsTable() {
                     {t('View All Logs →')}
                 </a>
             </div>
+			{listError ? (
+				<div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">
+					{listError}
+				</div>
+			) : null}
 			<div className="overflow-x-auto">
 				<table className="w-full text-left text-sm">
 					<thead className="bg-slate-50 dark:bg-background-dark text-slate-500 dark:text-text-secondary uppercase text-xs font-semibold">
@@ -108,27 +210,28 @@ export function AdminTransactionsTable() {
 							<th className="px-6 py-4 text-right">{t('Cached')}</th>
 							<th className="px-6 py-4 text-right">{t('Output')}</th>
 							<th className="px-6 py-4">{t('Cost')}</th>
+							<th className="px-6 py-4 text-center">{t('Request log')}</th>
 						</tr>
 					</thead>
 					<tbody className="divide-y divide-gray-200 dark:divide-border-dark">
 						{loading ? (
 							[...Array(5)].map((_, i) => (
 								<tr key={i}>
-									<td colSpan={10} className="px-6 py-4">
+									<td colSpan={11} className="px-6 py-4">
 										<div className="animate-pulse h-4 bg-slate-200 dark:bg-border-dark rounded"></div>
 									</td>
 								</tr>
 							))
 						) : transactions.length === 0 ? (
 							<tr>
-								<td colSpan={10} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
+								<td colSpan={11} className="px-6 py-8 text-center text-slate-500 dark:text-text-secondary">
 									{t('No transactions yet')}
 								</td>
 							</tr>
 						) : (
 							transactions.map((tx, index) => (
 								<tr
-									key={index}
+									key={tx.id || `${tx.request_id}-${index}`}
 									className="hover:bg-slate-50 dark:hover:bg-background-dark/30 transition-colors"
 								>
 									<td className="px-6 py-4 whitespace-nowrap text-slate-700 dark:text-white">
@@ -173,6 +276,15 @@ export function AdminTransactionsTable() {
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-text-secondary font-mono">
 										${(tx.cost_micros / 1000000).toFixed(3)}
+									</td>
+									<td className="px-6 py-4 whitespace-nowrap text-center">
+										<button
+											onClick={(event) => openRequestLog(tx, event.currentTarget)}
+											aria-label="Request log"
+											className="inline-flex items-center justify-center p-2 rounded-lg border border-gray-200 dark:border-border-dark text-slate-600 dark:text-text-secondary hover:bg-slate-100 dark:hover:bg-background-dark transition-colors"
+										>
+											<Icon name="description" size={18} />
+										</button>
 									</td>
 								</tr>
 							))
@@ -233,6 +345,50 @@ export function AdminTransactionsTable() {
 					</button>
 				</div>
 			</div>
+
+			{requestLogOpen ? (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+					<div
+						className="w-full max-w-5xl rounded-xl border border-gray-200 dark:border-border-dark bg-white dark:bg-surface-dark shadow-xl"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby={requestLogTitleId}
+					>
+						<div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-border-dark">
+							<h4 id={requestLogTitleId} className="text-base font-semibold text-slate-900 dark:text-white">{t('Request log')}</h4>
+							<button
+								ref={requestLogCloseButtonRef}
+								onClick={closeRequestLog}
+								aria-label={t('Close')}
+								className="inline-flex items-center justify-center p-2 rounded-lg border border-gray-200 dark:border-border-dark text-slate-600 dark:text-text-secondary hover:bg-slate-100 dark:hover:bg-background-dark transition-colors"
+							>
+								<Icon name="close" size={18} />
+							</button>
+						</div>
+						<div className="p-6 space-y-4">
+							{requestLogError ? (
+								<div className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">
+									{requestLogError}
+								</div>
+							) : null}
+							<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+								<div>
+									<div className="mb-2 text-sm font-semibold text-slate-700 dark:text-white">Request</div>
+									<pre className="min-h-48 max-h-96 overflow-auto rounded-lg border border-gray-200 dark:border-border-dark bg-slate-50 dark:bg-background-dark p-3 text-xs text-slate-700 dark:text-text-secondary whitespace-pre-wrap break-all">
+										{requestLogRequest || '-'}
+									</pre>
+								</div>
+								<div>
+									<div className="mb-2 text-sm font-semibold text-slate-700 dark:text-white">Response</div>
+									<pre className="min-h-48 max-h-96 overflow-auto rounded-lg border border-gray-200 dark:border-border-dark bg-slate-50 dark:bg-background-dark p-3 text-xs text-slate-700 dark:text-text-secondary whitespace-pre-wrap break-all">
+										{requestLogResponse || '-'}
+									</pre>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			) : null}
 		</div>
 	);
 }
