@@ -33,6 +33,7 @@ interface ProviderApiKey {
     proxy_url: string;
     headers?: Record<string, string>;
     models?: ModelAlias[];
+    whitelist_enabled?: boolean;
     excluded_models?: string[];
     api_key_entries?: APIKeyEntry[];
     created_at: string;
@@ -115,6 +116,58 @@ export function requiresBaseURL(provider: string): boolean {
     return normalized === 'openai-compatibility' || normalized === 'codex' || normalized === 'vertex';
 }
 
+interface BuildApiKeyPayloadInput {
+    provider: string;
+    name: string;
+    priority: number;
+    apiKey: string;
+    prefix: string;
+    baseURL: string;
+    proxyURL: string;
+    headersList: { key: string; value: string }[];
+    modelsList: ModelAlias[];
+    excludedModelsList: string[];
+    apiKeyEntries: unknown[];
+    whitelistEnabled: boolean;
+}
+
+export function buildApiKeyPayload(input: BuildApiKeyPayloadInput): Record<string, unknown> {
+    const normalizedProvider = input.provider.trim().toLowerCase();
+    const isOpenAICompat = normalizedProvider === 'openai-compatibility';
+    const isVertex = normalizedProvider === 'vertex';
+    const supportsExcluded = !isOpenAICompat && !isVertex;
+    const effectiveWhitelistEnabled = supportsExcluded ? input.whitelistEnabled : false;
+
+    const normalizedHeaders = input.headersList
+        .map((item) => ({ key: item.key.trim(), value: item.value.trim() }))
+        .filter((item) => item.key && item.value)
+        .reduce<Record<string, string>>((acc, item) => {
+            acc[item.key] = item.value;
+            return acc;
+        }, {});
+
+    const normalizedModels = input.modelsList
+        .map((item) => ({ name: item.name.trim(), alias: item.alias.trim() }))
+        .filter((item) => item.name || item.alias);
+
+    const excludedModels = input.excludedModelsList.map((m) => m.trim()).filter(Boolean);
+
+    return {
+        provider: input.provider,
+        name: input.name.trim(),
+        priority: input.priority,
+        api_key: input.apiKey.trim(),
+        prefix: input.prefix.trim(),
+        base_url: input.baseURL.trim(),
+        proxy_url: input.proxyURL.trim(),
+        headers: Object.keys(normalizedHeaders).length ? normalizedHeaders : undefined,
+        models: normalizedModels,
+        whitelist_enabled: effectiveWhitelistEnabled,
+        excluded_models: supportsExcluded && !effectiveWhitelistEnabled ? excludedModels : undefined,
+        api_key_entries: isOpenAICompat ? input.apiKeyEntries : undefined,
+    };
+}
+
 function getProviderStyle(provider: string): string {
     const colors: Record<string, string> = {
         gemini: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-100 dark:border-blue-800',
@@ -182,12 +235,21 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
             ? initial.excluded_models
             : ['']
     );
+    const [whitelistEnabled, setWhitelistEnabled] = useState(initial?.whitelist_enabled ?? false);
     const [apiKeyEntriesText, setApiKeyEntriesText] = useState(
         initial?.api_key_entries ? JSON.stringify(initial.api_key_entries, null, 2) : ''
     );
     const [menuOpen, setMenuOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        const normalizedProvider = provider.trim().toLowerCase();
+        const supportsExcluded = normalizedProvider !== 'openai-compatibility' && normalizedProvider !== 'vertex';
+        if (!supportsExcluded && whitelistEnabled) {
+            setWhitelistEnabled(false);
+        }
+    }, [provider, whitelistEnabled]);
 
     const options = buildProviderOptions(t);
     const selectedLabel = provider ? getProviderLabel(provider, t) : t('Select Type');
@@ -307,16 +369,6 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
             }
         }
 
-        const normalizedHeaders = headersList
-            .map((item) => ({ key: item.key.trim(), value: item.value.trim() }))
-            .filter((item) => item.key && item.value)
-            .reduce<Record<string, string>>((acc, item) => {
-                acc[item.key] = item.value;
-                return acc;
-            }, {});
-
-        const excludedModels = excludedModelsList.map((m) => m.trim()).filter(Boolean);
-
         const apiKeyEntries = parseArray(apiKeyEntriesText, t('API Key Entries'));
         if (apiKeyEntries === null) return;
         if (provider === 'openai-compatibility' && apiKeyEntries.length === 0) {
@@ -324,23 +376,20 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
             return;
         }
 
-        const normalizedModels = modelsList
-            .map((item) => ({ name: item.name.trim(), alias: item.alias.trim() }))
-            .filter((item) => item.name || item.alias);
-
-        const payload = {
+        const payload = buildApiKeyPayload({
             provider,
             name: normalizedName,
             priority,
-            api_key: apiKey.trim(),
-            prefix: prefix.trim(),
-            base_url: baseURL.trim(),
-            proxy_url: proxyURL.trim(),
-            headers: Object.keys(normalizedHeaders).length ? normalizedHeaders : undefined,
-            models: normalizedModels,
-            excluded_models: isOpenAICompat || isVertex ? undefined : excludedModels,
-            api_key_entries: isOpenAICompat ? apiKeyEntries : undefined,
-        };
+            apiKey,
+            prefix,
+            baseURL,
+            proxyURL,
+            headersList,
+            modelsList,
+            excludedModelsList,
+            apiKeyEntries,
+            whitelistEnabled,
+        });
 
         setSubmitting(true);
         try {
@@ -616,6 +665,28 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
                             />
                         </div>
                     ) : provider !== 'vertex' ? (
+                        <>
+                        <div className="rounded-lg border border-gray-200 dark:border-border-dark p-3 bg-gray-50 dark:bg-background-dark/40 space-y-2">
+                            <label className="flex items-center gap-2 text-sm text-slate-900 dark:text-white cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={whitelistEnabled}
+                                    onChange={(e) => setWhitelistEnabled(e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <span className="font-medium">{t('Whitelist mode')}</span>
+                            </label>
+                            <p className="text-xs text-gray-600 dark:text-gray-300">
+                                {t('Use models as allowlist (auto-generate excluded models on save)')}
+                            </p>
+                            {whitelistEnabled ? (
+                                <>
+                                    <p className="text-xs text-primary">{t('When enabled, excluded models are generated automatically.')}</p>
+                                    <p className="text-xs text-amber-600 dark:text-amber-400">{t('Empty allowlist will block all models for this credential.')}</p>
+                                </>
+                            ) : null}
+                        </div>
+                        {!whitelistEnabled ? (
                         <div>
                             <div className="flex items-center justify-between mb-1.5">
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -658,6 +729,8 @@ function ApiKeyModal({ mode, initial, providerMenuWidth, onClose, onSuccess }: A
                                 ))}
                             </div>
                         </div>
+                        ) : null}
+                        </>
                     ) : null}
                 </div>
                 <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-border-dark shrink-0">
