@@ -266,6 +266,9 @@ interface AuthFile {
         name: string;
     }[];
     content: Record<string, unknown>;
+    whitelist_enabled?: boolean;
+    allowed_models?: string[];
+    excluded_models?: string[];
     is_available: boolean;
     rate_limit: number;
     created_at: string;
@@ -299,6 +302,125 @@ interface ProxyItem {
 
 interface ProxiesResponse {
     proxies: ProxyItem[];
+}
+
+interface AuthFileModelPresetsResponse {
+    provider?: string;
+    supported: boolean;
+    reason_code?: string;
+    reason?: string;
+    models?: string[];
+}
+
+const WHITELIST_REASON_CODE_TO_I18N_KEY: Record<string, string> = {
+    auth_type_required: 'Auth type is required for whitelist presets.',
+    unsupported_auth_type: 'Whitelist is not supported for this auth type.',
+    whitelist_not_supported: 'Whitelist is not supported for this auth type.',
+    provider_models_unavailable: 'Provider models are temporarily unavailable for this auth type.',
+};
+
+interface BuildAuthFileUpdatePayloadInput {
+    name: string;
+    key: string;
+    isAvailable: boolean;
+    proxyUrl: string;
+    rateLimit: number;
+    priority: number;
+    authGroupIds?: number[];
+    includeWhitelistFields?: boolean;
+    whitelistEnabled: boolean;
+    allowedModels: string[];
+}
+
+interface ResolveAuthFileWhitelistSaveInput {
+    editWhitelistSupported: boolean;
+    editWhitelistDirty: boolean;
+    editWhitelistEnabled: boolean;
+    editAllowedModels: string[];
+    fallbackWhitelistEnabled: boolean;
+    fallbackAllowedModels: string[];
+}
+
+export function deriveWhitelistCapability(result: AuthFileModelPresetsResponse) {
+    const models = Array.isArray(result.models)
+        ? Array.from(new Set(result.models.map((item) => item.trim()).filter(Boolean))).sort((a, b) =>
+              a.localeCompare(b)
+          )
+        : [];
+    return {
+        supported: !!result.supported,
+        disabled: !result.supported,
+        reasonCode: typeof result.reason_code === 'string' ? result.reason_code.trim() : '',
+        reason: result.reason || '',
+        models,
+        provider: result.provider || '',
+    };
+}
+
+export function resolveWhitelistReason(
+    result: Pick<AuthFileModelPresetsResponse, 'reason_code' | 'reason'>,
+    translate: (key: string) => string
+) {
+    const reasonCode = typeof result.reason_code === 'string' ? result.reason_code.trim() : '';
+    const rawReason = typeof result.reason === 'string' ? result.reason.trim() : '';
+    if (reasonCode) {
+        const i18nKey = WHITELIST_REASON_CODE_TO_I18N_KEY[reasonCode];
+        if (i18nKey) {
+            const translated = translate(i18nKey);
+            if (translated && translated !== i18nKey) {
+                return translated;
+            }
+        }
+    }
+    return rawReason;
+}
+
+export function beginEditPresetRequest(currentRequestId: number) {
+    return currentRequestId + 1;
+}
+
+export function invalidateEditPresetRequest(currentRequestId: number) {
+    return beginEditPresetRequest(currentRequestId);
+}
+
+export function canApplyEditPresetRequest(activeRequestId: number, requestId: number) {
+    return activeRequestId === requestId;
+}
+
+export function resolveAuthFileWhitelistForSave(input: ResolveAuthFileWhitelistSaveInput) {
+    if (!input.editWhitelistSupported || !input.editWhitelistDirty) {
+        return {
+            whitelistEnabled: input.fallbackWhitelistEnabled,
+            allowedModels: input.fallbackAllowedModels,
+        };
+    }
+    return {
+        whitelistEnabled: input.editWhitelistEnabled,
+        allowedModels: input.editWhitelistEnabled ? input.editAllowedModels : [],
+    };
+}
+
+export function buildAuthFileUpdatePayload(input: BuildAuthFileUpdatePayloadInput) {
+    const normalizedAllowedModels = Array.from(new Set(input.allowedModels.map((m) => m.trim()).filter(Boolean))).sort(
+        (a, b) => a.localeCompare(b)
+    );
+    const payload: Record<string, unknown> = {
+        name: input.name.trim(),
+        key: input.key.trim(),
+        is_available: input.isAvailable,
+        proxy_url: input.proxyUrl.trim(),
+        rate_limit: input.rateLimit,
+        priority: input.priority,
+    };
+    const includeWhitelistFields = input.includeWhitelistFields ?? true;
+    if (includeWhitelistFields) {
+        payload.whitelist_enabled = input.whitelistEnabled;
+        payload.allowed_models = input.whitelistEnabled ? normalizedAllowedModels : [];
+    }
+    if (input.authGroupIds) {
+        payload.auth_group_id = input.authGroupIds;
+    }
+    return payload;
 }
 
 interface ImportFailure {
@@ -548,6 +670,7 @@ export function AdminAuthFiles() {
     const authSnapshotRef = useRef<Set<string>>(new Set());
     const authStartAtRef = useRef<Date | null>(null);
     const importInputRef = useRef<HTMLInputElement>(null);
+    const editPresetRequestRef = useRef(0);
     const { tableScrollRef, handleTableScroll, showActionsDivider } = useStickyActionsDivider(
         authFiles.length,
         loading
@@ -562,6 +685,13 @@ export function AdminAuthFiles() {
     const [editProxyUrl, setEditProxyUrl] = useState('');
     const [editRateLimit, setEditRateLimit] = useState('0');
     const [editPriority, setEditPriority] = useState('0');
+    const [editWhitelistEnabled, setEditWhitelistEnabled] = useState(false);
+    const [editAllowedModels, setEditAllowedModels] = useState<string[]>([]);
+    const [editPresetModels, setEditPresetModels] = useState<string[]>([]);
+    const [editWhitelistSupported, setEditWhitelistSupported] = useState(false);
+    const [editWhitelistReason, setEditWhitelistReason] = useState('');
+    const [editWhitelistLoading, setEditWhitelistLoading] = useState(false);
+    const [editWhitelistDirty, setEditWhitelistDirty] = useState(false);
     const [editSaving, setEditSaving] = useState(false);
     const [editGroupMenuOpen, setEditGroupMenuOpen] = useState(false);
     const [editGroupBtnWidth, setEditGroupBtnWidth] = useState<number | undefined>(undefined);
@@ -951,6 +1081,58 @@ export function AdminAuthFiles() {
         }
     }, [availableTypes, t]);
 
+    const getAuthTypeFromContent = useCallback((content: Record<string, unknown>) => {
+        const typeValue = typeof content?.type === 'string' ? content.type.trim() : '';
+        if (typeValue) {
+            return typeValue;
+        }
+        const providerValue = typeof content?.provider === 'string' ? content.provider.trim() : '';
+        return providerValue;
+    }, []);
+
+    const loadEditModelPresets = useCallback(
+        async (authType: string) => {
+            const requestId = beginEditPresetRequest(editPresetRequestRef.current);
+            editPresetRequestRef.current = requestId;
+            const typeValue = authType.trim();
+            if (!typeValue) {
+                setEditWhitelistSupported(false);
+                setEditWhitelistReason(
+                    resolveWhitelistReason({ reason_code: 'auth_type_required', reason: '' }, t)
+                );
+                setEditPresetModels([]);
+                setEditWhitelistLoading(false);
+                return;
+            }
+            setEditWhitelistLoading(true);
+            try {
+                const res = await apiFetchAdmin<AuthFileModelPresetsResponse>(
+                    `/v0/admin/auth-files/model-presets?type=${encodeURIComponent(typeValue)}`
+                );
+                if (!canApplyEditPresetRequest(editPresetRequestRef.current, requestId)) {
+                    return;
+                }
+                const capability = deriveWhitelistCapability(res);
+                setEditWhitelistSupported(capability.supported);
+                setEditWhitelistReason(resolveWhitelistReason(res, t));
+                setEditPresetModels(capability.models);
+            } catch (err) {
+                if (!canApplyEditPresetRequest(editPresetRequestRef.current, requestId)) {
+                    return;
+                }
+                console.error('Failed to load auth file model presets:', err);
+                setEditWhitelistSupported(false);
+                setEditWhitelistReason(t('Model presets are temporarily unavailable.'));
+                setEditPresetModels([]);
+            } finally {
+                if (canApplyEditPresetRequest(editPresetRequestRef.current, requestId)) {
+                    setEditWhitelistLoading(false);
+                }
+            }
+        },
+        [t]
+    );
+
     const handleEdit = (file: AuthFile) => {
         if (!canUpdateAuthFiles) {
             return;
@@ -963,7 +1145,15 @@ export function AdminAuthFiles() {
         setEditProxyUrl(file.proxy_url || '');
         setEditRateLimit(String(file.rate_limit ?? 0));
         setEditPriority(String(file.priority ?? 0));
+        setEditWhitelistEnabled(!!file.whitelist_enabled);
+        setEditAllowedModels(Array.isArray(file.allowed_models) ? file.allowed_models : []);
+        setEditPresetModels([]);
+        setEditWhitelistReason('');
+        setEditWhitelistSupported(false);
+        setEditWhitelistDirty(false);
         setEditModalOpen(true);
+        const authType = getAuthTypeFromContent(file.content || {});
+        void loadEditModelPresets(authType);
     };
 
     const handleEditSave = async () => {
@@ -974,27 +1164,43 @@ export function AdminAuthFiles() {
             if (!trimmedName) {
                 return;
             }
+            const trimmedKey = editKey.trim();
+            if (!trimmedKey) {
+                return;
+            }
             const proxyUrl = editProxyUrl.trim();
             const normalizedEditGroupIds = normalizeGroupIds(editGroupIds);
             const parsedRateLimit = Number.parseInt(editRateLimit, 10);
             const rateLimit = Number.isNaN(parsedRateLimit) ? 0 : Math.max(0, parsedRateLimit);
             const parsedPriority = Number.parseInt(editPriority, 10);
             const priority = Number.isNaN(parsedPriority) ? 0 : parsedPriority;
-            const payload: Record<string, unknown> = {
+            const fallbackWhitelistEnabled = editingFile?.whitelist_enabled ?? false;
+            const fallbackAllowedModels = Array.isArray(editingFile?.allowed_models) ? editingFile.allowed_models : [];
+            const whitelistSave = resolveAuthFileWhitelistForSave({
+                editWhitelistSupported,
+                editWhitelistDirty,
+                editWhitelistEnabled,
+                editAllowedModels,
+                fallbackWhitelistEnabled,
+                fallbackAllowedModels,
+            });
+            const payload = buildAuthFileUpdatePayload({
                 name: trimmedName,
-                key: editKey,
-                is_available: editIsAvailable,
-                proxy_url: proxyUrl,
-                rate_limit: rateLimit,
+                key: trimmedKey,
+                isAvailable: editIsAvailable,
+                proxyUrl,
+                rateLimit,
                 priority,
-            };
-            if (canListGroups) {
-                payload.auth_group_id = normalizedEditGroupIds;
-            }
+                authGroupIds: canListGroups ? normalizedEditGroupIds : undefined,
+                includeWhitelistFields: editWhitelistSupported && editWhitelistDirty,
+                whitelistEnabled: whitelistSave.whitelistEnabled,
+                allowedModels: whitelistSave.allowedModels,
+            });
             await apiFetchAdmin(`/v0/admin/auth-files/${editingFile.id}`, {
                 method: 'PUT',
                 body: JSON.stringify(payload),
             });
+            editPresetRequestRef.current = invalidateEditPresetRequest(editPresetRequestRef.current);
             setEditModalOpen(false);
             const selectedGroups = authGroups.filter((group) => normalizedEditGroupIds.includes(group.id));
             setAuthFiles((prev) =>
@@ -1003,10 +1209,12 @@ export function AdminAuthFiles() {
                         ? {
                             ...item,
                             name: trimmedName,
-                            key: editKey,
+                            key: trimmedKey,
                             auth_group_id: normalizedEditGroupIds,
                             auth_group: selectedGroups,
                             proxy_url: proxyUrl,
+                            whitelist_enabled: whitelistSave.whitelistEnabled,
+                            allowed_models: whitelistSave.whitelistEnabled ? whitelistSave.allowedModels : [],
                             is_available: editIsAvailable,
                             rate_limit: rateLimit,
                             priority,
@@ -1019,6 +1227,7 @@ export function AdminAuthFiles() {
             setEditProxyUrl('');
             setEditRateLimit('0');
             setEditPriority('0');
+            setEditWhitelistDirty(false);
             showToast(t('Auth file updated successfully'));
         } catch (err) {
             console.error('Failed to update auth file:', err);
@@ -1028,12 +1237,20 @@ export function AdminAuthFiles() {
     };
 
     const handleEditClose = () => {
+        editPresetRequestRef.current = invalidateEditPresetRequest(editPresetRequestRef.current);
         setEditModalOpen(false);
         setEditingFile(null);
         setEditName('');
         setEditProxyUrl('');
         setEditRateLimit('0');
         setEditPriority('0');
+        setEditWhitelistEnabled(false);
+        setEditAllowedModels([]);
+        setEditPresetModels([]);
+        setEditWhitelistSupported(false);
+        setEditWhitelistReason('');
+        setEditWhitelistLoading(false);
+        setEditWhitelistDirty(false);
         setEditGroupIds([]);
         setEditGroupSearch('');
     };
@@ -2999,6 +3216,75 @@ export function AdminAuthFiles() {
                                         <span className="text-sm text-slate-900 dark:text-white">{t('Disabled')}</span>
                                     </label>
                                 </div>
+                            </div>
+                            <div className="rounded-lg border border-gray-200 dark:border-border-dark p-3 space-y-3 bg-gray-50 dark:bg-background-dark/40">
+                                <label className="flex items-center gap-2 text-sm text-slate-900 dark:text-white cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={editWhitelistEnabled}
+                                        disabled={!editWhitelistSupported || editWhitelistLoading}
+                                        onChange={(e) => {
+                                            setEditWhitelistEnabled(e.target.checked);
+                                            setEditWhitelistDirty(true);
+                                        }}
+                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                    <span className="font-medium">{t('Whitelist mode')}</span>
+                                </label>
+                                <p className="text-xs text-gray-600 dark:text-gray-300">
+                                    {t('Use allowed models to limit this auth file.')}
+                                </p>
+                                {editWhitelistLoading ? (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{t('Loading model presets...')}</p>
+                                ) : null}
+                                {!editWhitelistSupported ? (
+                                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                                        {editWhitelistReason || t('Whitelist is not supported for this auth type.')}
+                                    </p>
+                                ) : null}
+                                {editWhitelistSupported && editWhitelistEnabled ? (
+                                    <>
+                                        <div className="max-h-36 overflow-y-auto border border-gray-200 dark:border-border-dark rounded-lg bg-white dark:bg-surface-dark">
+                                            {editPresetModels.length === 0 ? (
+                                                <p className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                                                    {t('No preset models available.')}
+                                                </p>
+                                            ) : (
+                                                editPresetModels.map((model) => {
+                                                    const checked = editAllowedModels.includes(model);
+                                                    return (
+                                                        <label
+                                                            key={model}
+                                                            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-900 dark:text-white border-b last:border-b-0 border-gray-100 dark:border-border-dark"
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={checked}
+                                                                onChange={(e) => {
+                                                                    const enabled = e.target.checked;
+                                                                    setEditWhitelistDirty(true);
+                                                                    setEditAllowedModels((prev) => {
+                                                                        if (enabled) {
+                                                                            return Array.from(new Set([...prev, model])).sort((a, b) =>
+                                                                                a.localeCompare(b)
+                                                                            );
+                                                                        }
+                                                                        return prev.filter((item) => item !== model);
+                                                                    });
+                                                                }}
+                                                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                                            />
+                                                            <span className="break-all">{model}</span>
+                                                        </label>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                                            {t('Empty allowlist will block all models for this auth file.')}
+                                        </p>
+                                    </>
+                                ) : null}
                             </div>
                         </div>
                         <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-border-dark shrink-0">
