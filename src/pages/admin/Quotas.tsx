@@ -13,6 +13,7 @@ interface QuotaRecord {
     id: number;
     auth_id: number;
     auth_key: string;
+    auth_name?: string;
     type: string;
     data: unknown;
     updated_at: string;
@@ -838,6 +839,7 @@ export function AdminQuotas() {
         const fallback = t('Unknown');
         return quotas.map((quota) => ({
             ...quota,
+            auth_title: resolveQuotaAuthTitle(quota.auth_name, quota.auth_key),
             typeLabel: formatTypeLabel(quota.type || '', fallback),
             items: extractQuotaItems(quota.data, quota.updated_at, i18n.language),
         }));
@@ -1110,7 +1112,7 @@ export function AdminQuotas() {
                             </div>
                             <input
                                 className="block w-full p-2.5 pl-10 text-sm text-slate-900 dark:text-white bg-gray-50 dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded-lg focus:ring-primary focus:border-primary placeholder-gray-400 dark:placeholder-gray-500"
-                                placeholder={t('Search by key...')}
+                                placeholder={t('Search by name or key...')}
                                 type="text"
                                 value={search}
                                 onChange={(e) => handleSearchChange(e.target.value)}
@@ -1233,7 +1235,7 @@ export function AdminQuotas() {
                                         {quota.typeLabel}
                                     </span>
                                     <div className="flex-1 text-base font-semibold text-slate-900 dark:text-white break-all">
-                                        {quota.auth_key}
+                                        {quota.auth_title}
                                     </div>
                                 </div>
                                 <div className="border-t border-dashed border-gray-200 dark:border-border-dark" />
@@ -1383,7 +1385,9 @@ export function AdminQuotas() {
                             <div className="space-y-2 text-sm text-slate-700 dark:text-text-secondary">
                                 <div>
                                     <span className="font-semibold text-slate-900 dark:text-white">{t('Account Key')}:</span>{' '}
-                                    <span className="break-all">{errorDialogQuota.auth_key}</span>
+                                    <span className="break-all">
+                                        {resolveQuotaAuthTitle(errorDialogQuota.auth_name, errorDialogQuota.auth_key)}
+                                    </span>
                                 </div>
                                 <div>
                                     <span className="font-semibold text-slate-900 dark:text-white">{t('Recent Check Time')}:</span>{' '}
@@ -1434,4 +1438,9 @@ export function AdminQuotas() {
             </div>
         </AdminDashboardLayout>
     );
+}
+
+export function resolveQuotaAuthTitle(authName: string | undefined, authKey: string): string {
+    const name = (authName || '').trim();
+    return name || authKey;
 }
