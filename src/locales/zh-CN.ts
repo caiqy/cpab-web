@@ -632,6 +632,8 @@ const zhCN: Record<string, string> = {
     "Token Status": "Token 状态",
     "Token Normal": "Token 正常",
     "Token Invalid": "Token 无效",
+    "Premium Interactions": "高级请求",
+    "Unlimited": "无限",
     "Last Updated": "最后更新时间",
     "View Error": "查看错误信息",
     "Token Error Details": "Token 错误详情",

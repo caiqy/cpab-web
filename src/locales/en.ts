@@ -628,6 +628,8 @@ const en: Record<string, string> = {
     "Token Status": "Token Status",
     "Token Normal": "Token Normal",
     "Token Invalid": "Token Invalid",
+    "Premium Interactions": "Premium Interactions",
+    "Unlimited": "Unlimited",
     "Last Updated": "Last Updated",
     "View Error": "View Error",
     "Token Error Details": "Token Error Details",
