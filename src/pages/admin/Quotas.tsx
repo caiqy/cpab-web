@@ -8,6 +8,7 @@ import { Icon } from '../../components/Icon';
 import { buildAdminPermissionKey, useAdminPermissions } from '../../utils/adminPermissions';
 import { useTranslation } from 'react-i18next';
 import { copyText } from '../../utils/copy';
+import { extractCopilotQuotaItems } from './quotaCopilotParser';
 
 interface QuotaRecord {
     id: number;
@@ -63,8 +64,6 @@ interface QuotaItem {
     updatedAt: string | null;
     amountDisplay?: string;
 }
-
-type QuotaTranslator = (key: string, options?: { [key: string]: unknown }) => string;
 
 interface TypeDropdownMenuProps {
     options: { value: string; label: string }[];
@@ -525,74 +524,13 @@ function extractCodexItems(payload: unknown, locale: string): QuotaItem[] | null
     return items.length > 0 ? items : null;
 }
 
-function extractCopilotItems(
+function extractQuotaItems(
     payload: unknown,
     fallbackTime: string,
     locale: string,
-    t: QuotaTranslator
-): QuotaItem[] | null {
-    const normalized = normalizePayload(payload);
-    if (!normalized || typeof normalized !== 'object') {
-        return null;
-    }
-    const snapshots = toRecord((normalized as Record<string, unknown>).quota_snapshots);
-    if (!snapshots) {
-        return null;
-    }
-
-    const orderedKeys = ['chat', 'completions', 'premium_interactions'];
-    const otherKeys = Object.keys(snapshots).filter((key) => !orderedKeys.includes(key));
-    const keys = [...orderedKeys.filter((key) => key in snapshots), ...otherKeys.sort()];
-
-    const items: QuotaItem[] = [];
-    for (const key of keys) {
-        const record = toRecord(snapshots[key]);
-        if (!record) {
-            continue;
-        }
-
-        const quotaID = toStringValue(record.quota_id) || key;
-        const displayName = quotaID === 'premium_interactions' ? t('Premium Interactions') : quotaID;
-
-        let percent = toNumber(record.percent_remaining);
-        if (percent !== null) {
-            percent = normalizePercent(percent);
-        } else {
-            const remaining = toNumber(record.remaining);
-            const entitlement = toNumber(record.entitlement);
-            if (remaining !== null && entitlement !== null && entitlement > 0) {
-                percent = normalizePercent((remaining / entitlement) * 100);
-            }
-        }
-
-        const timestamp = toStringValue(record.timestamp_utc) || fallbackTime;
-        const updatedAt = formatQuotaTime(timestamp, locale) ? timestamp : null;
-
-        let amountDisplay: string | undefined;
-        if (quotaID === 'premium_interactions') {
-            const unlimited = normalizeBoolean(record.unlimited) === true;
-            const remaining = toNumber(record.remaining);
-            const entitlement = toNumber(record.entitlement);
-            if (unlimited && (entitlement === null || entitlement <= 0)) {
-                amountDisplay = t('Unlimited');
-            } else if (remaining !== null && entitlement !== null && entitlement >= 0) {
-                amountDisplay = `${formatQuotaAmount(remaining)} / ${formatQuotaAmount(entitlement)}`;
-            }
-        }
-
-        items.push({
-            name: displayName,
-            percent,
-            updatedAt,
-            amountDisplay,
-        });
-    }
-
-    return items.length > 0 ? items : null;
-}
-
-function extractQuotaItems(payload: unknown, fallbackTime: string, locale: string, t: QuotaTranslator): QuotaItem[] {
-    const copilotItems = extractCopilotItems(payload, fallbackTime, locale, t);
+    t: (key: string, options?: { [key: string]: unknown }) => string
+): QuotaItem[] {
+    const copilotItems = extractCopilotQuotaItems(payload, fallbackTime, locale, t);
     if (copilotItems) {
         return copilotItems;
     }
@@ -763,16 +701,6 @@ function formatQuotaTime(value: string | null, locale: string): string {
         minute: '2-digit',
     });
     return formatter.format(date);
-}
-
-function formatQuotaAmount(value: number): string {
-    if (!Number.isFinite(value)) {
-        return '0';
-    }
-    if (Math.abs(value - Math.round(value)) < 1e-6) {
-        return String(Math.round(value));
-    }
-    return value.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
 }
 
 function formatAbsoluteTime(value: string | null, locale: string): string {
@@ -1346,7 +1274,7 @@ export function AdminQuotas() {
                                                                 {item.name}
                                                             </span>
                                                         </div>
-                                                        <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-text-secondary whitespace-nowrap">
+                                                        <div className="flex flex-col items-end gap-0.5 text-xs text-slate-600 dark:text-text-secondary text-right">
                                                             <span className="font-semibold text-slate-900 dark:text-white">
                                                                 {percentLabel}
                                                             </span>
@@ -1531,13 +1459,4 @@ export function AdminQuotas() {
 export function resolveQuotaAuthTitle(authName: string | undefined, authKey: string): string {
     const name = (authName || '').trim();
     return name || authKey;
-}
-
-export function extractCopilotItemsForTest(
-    payload: unknown,
-    fallbackTime: string,
-    locale: string,
-    t: QuotaTranslator
-): QuotaItem[] | null {
-    return extractCopilotItems(payload, fallbackTime, locale, t);
 }
