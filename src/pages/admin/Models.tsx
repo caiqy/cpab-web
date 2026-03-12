@@ -2091,6 +2091,40 @@ export function AdminModels() {
         });
     };
 
+    const handleBulkDelete = () => {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0 || !canDeleteMapping) return;
+
+        setConfirmDialog({
+            title: t('Delete Model Mappings'),
+            message: t('Are you sure you want to {{action}} {{count}} model mapping(s)?', {
+                action: t('Delete'),
+                count: ids.length,
+            }),
+            confirmText: t('Delete'),
+            danger: true,
+            onConfirm: async () => {
+                const results = await Promise.allSettled(
+                    ids.map((id) => apiFetchAdmin(`/v0/admin/model-mappings/${id}`, { method: 'DELETE' }))
+                );
+
+                const successIds = ids.filter((_, index) => results[index]?.status === 'fulfilled');
+                const failedIds = ids.filter((_, index) => results[index]?.status === 'rejected');
+                const successSet = new Set(successIds);
+
+                results.forEach((result, index) => {
+                    if (result.status === 'rejected') {
+                        console.error(`Failed to delete model mapping ${ids[index]}:`, result.reason);
+                    }
+                });
+
+                setMappings((prev) => prev.filter((item) => !successSet.has(item.id)));
+                setSelectedIds(new Set(failedIds));
+                setConfirmDialog(null);
+            },
+        });
+    };
+
     if (!canListMappings) {
         return (
             <AdminDashboardLayout
@@ -2197,6 +2231,16 @@ export function AdminModels() {
                             >
                                 <Icon name="toggle_off" size={18} />
                                 <span>{t('Disable')}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleBulkDelete}
+                                disabled={selectedCount === 0 || !canDeleteMapping}
+                                className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg font-medium transition-colors bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={t('Bulk delete selected')}
+                            >
+                                <Icon name="delete" size={18} />
+                                <span>{t('Delete')}</span>
                             </button>
                         </div>
                     </div>
