@@ -319,6 +319,8 @@ const WHITELIST_REASON_CODE_TO_I18N_KEY: Record<string, string> = {
     provider_models_unavailable: 'Provider models are temporarily unavailable for this auth type.',
 };
 
+const AUTH_FILE_CONTENT_CONFLICT_KEYS = new Set(['proxy_url']);
+
 interface BuildAuthFileUpdatePayloadInput {
     name: string;
     key: string;
@@ -330,6 +332,7 @@ interface BuildAuthFileUpdatePayloadInput {
     includeWhitelistFields?: boolean;
     whitelistEnabled: boolean;
     allowedModels: string[];
+    content?: Record<string, unknown>;
 }
 
 interface ResolveAuthFileWhitelistSaveInput {
@@ -400,6 +403,74 @@ export function resolveAuthFileWhitelistForSave(input: ResolveAuthFileWhitelistS
     };
 }
 
+export function formatAuthFileContentForEdit(content: unknown) {
+    if (content === undefined) {
+        return {
+            text: '{}',
+            notice: '',
+            fallbackUsed: false,
+        };
+    }
+
+    try {
+        const serialized = JSON.stringify(content, null, 2);
+        if (typeof serialized !== 'string') {
+            return {
+                text: '{}',
+                notice: 'Current content could not be formatted. Initialized with an empty object.',
+                fallbackUsed: true,
+            };
+        }
+
+        return {
+            text: serialized,
+            notice: '',
+            fallbackUsed: false,
+        };
+    } catch {
+        return {
+            text: '{}',
+            notice: 'Current content could not be formatted. Initialized with an empty object.',
+            fallbackUsed: true,
+        };
+    }
+}
+
+export function getAuthFileContentValidation(text: string) {
+    try {
+        const parsed = JSON.parse(text);
+        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return {
+                parsedContent: null,
+                error: 'Content must be a JSON object.',
+                hasConflict: false,
+            };
+        }
+
+        const topLevelKeys = Object.keys(parsed);
+        const conflictKey = topLevelKeys.find((key) => AUTH_FILE_CONTENT_CONFLICT_KEYS.has(key));
+        if (conflictKey) {
+            return {
+                parsedContent: null,
+                error: `${conflictKey} must be edited with the dedicated form field.`,
+                hasConflict: true,
+            };
+        }
+
+        return {
+            parsedContent: parsed as Record<string, unknown>,
+            error: '',
+            hasConflict: false,
+        };
+    } catch {
+        return {
+            parsedContent: null,
+            error: 'Content must be valid JSON.',
+            hasConflict: false,
+        };
+    }
+}
+
 export function buildAuthFileUpdatePayload(input: BuildAuthFileUpdatePayloadInput) {
     const normalizedAllowedModels = Array.from(new Set(input.allowedModels.map((m) => m.trim()).filter(Boolean))).sort(
         (a, b) => a.localeCompare(b)
@@ -419,6 +490,9 @@ export function buildAuthFileUpdatePayload(input: BuildAuthFileUpdatePayloadInpu
     }
     if (input.authGroupIds) {
         payload.auth_group_id = input.authGroupIds;
+    }
+    if (input.content !== undefined) {
+        payload.content = input.content;
     }
     return payload;
 }
@@ -685,6 +759,10 @@ export function AdminAuthFiles() {
     const [editProxyUrl, setEditProxyUrl] = useState('');
     const [editRateLimit, setEditRateLimit] = useState('0');
     const [editPriority, setEditPriority] = useState('0');
+    const [editContentText, setEditContentText] = useState('{}');
+    const [editContentError, setEditContentError] = useState('');
+    const [editContentNotice, setEditContentNotice] = useState('');
+    const [editSubmitError, setEditSubmitError] = useState('');
     const [editWhitelistEnabled, setEditWhitelistEnabled] = useState(false);
     const [editAllowedModels, setEditAllowedModels] = useState<string[]>([]);
     const [editPresetModels, setEditPresetModels] = useState<string[]>([]);
@@ -1137,6 +1215,8 @@ export function AdminAuthFiles() {
         if (!canUpdateAuthFiles) {
             return;
         }
+        const formatted = formatAuthFileContentForEdit(file.content);
+        const initialValidation = getAuthFileContentValidation(formatted.text);
         setEditingFile(file);
         setEditName((file.name || file.key) ?? '');
         setEditKey(file.key);
@@ -1151,6 +1231,10 @@ export function AdminAuthFiles() {
         setEditWhitelistReason('');
         setEditWhitelistSupported(false);
         setEditWhitelistDirty(false);
+        setEditContentText(formatted.text);
+        setEditContentError(initialValidation.error);
+        setEditContentNotice(formatted.notice);
+        setEditSubmitError('');
         setEditModalOpen(true);
         const authType = getAuthTypeFromContent(file.content || {});
         void loadEditModelPresets(authType);
@@ -1159,6 +1243,7 @@ export function AdminAuthFiles() {
     const handleEditSave = async () => {
         if (!editingFile || !canUpdateAuthFiles) return;
         setEditSaving(true);
+        setEditSubmitError('');
         try {
             const trimmedName = editName.trim();
             if (!trimmedName) {
@@ -1184,6 +1269,11 @@ export function AdminAuthFiles() {
                 fallbackWhitelistEnabled,
                 fallbackAllowedModels,
             });
+            const contentValidation = getAuthFileContentValidation(editContentText);
+            if (contentValidation.error || !contentValidation.parsedContent) {
+                setEditContentError(contentValidation.error);
+                return;
+            }
             const payload = buildAuthFileUpdatePayload({
                 name: trimmedName,
                 key: trimmedKey,
@@ -1195,6 +1285,7 @@ export function AdminAuthFiles() {
                 includeWhitelistFields: editWhitelistSupported && editWhitelistDirty,
                 whitelistEnabled: whitelistSave.whitelistEnabled,
                 allowedModels: whitelistSave.allowedModels,
+                content: contentValidation.parsedContent,
             });
             await apiFetchAdmin(`/v0/admin/auth-files/${editingFile.id}`, {
                 method: 'PUT',
@@ -1213,6 +1304,7 @@ export function AdminAuthFiles() {
                             auth_group_id: normalizedEditGroupIds,
                             auth_group: selectedGroups,
                             proxy_url: proxyUrl,
+                            content: contentValidation.parsedContent,
                             whitelist_enabled: whitelistSave.whitelistEnabled,
                             allowed_models: whitelistSave.whitelistEnabled ? whitelistSave.allowedModels : [],
                             is_available: editIsAvailable,
@@ -1231,6 +1323,7 @@ export function AdminAuthFiles() {
             showToast(t('Auth file updated successfully'));
         } catch (err) {
             console.error('Failed to update auth file:', err);
+            setEditSubmitError(t('Failed to update auth file.'));
         } finally {
             setEditSaving(false);
         }
@@ -1244,6 +1337,10 @@ export function AdminAuthFiles() {
         setEditProxyUrl('');
         setEditRateLimit('0');
         setEditPriority('0');
+        setEditContentText('');
+        setEditContentError('');
+        setEditContentNotice('');
+        setEditSubmitError('');
         setEditWhitelistEnabled(false);
         setEditAllowedModels([]);
         setEditPresetModels([]);
@@ -3151,6 +3248,33 @@ export function AdminAuthFiles() {
                                 />
                             </div>
                             <div>
+                                <label
+                                    htmlFor="edit-content-json"
+                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                                >
+                                    {t('Content (JSON)')}
+                                </label>
+                                <textarea
+                                    id="edit-content-json"
+                                    value={editContentText}
+                                    onChange={(e) => {
+                                        const next = e.target.value;
+                                        setEditContentText(next);
+                                        setEditSubmitError('');
+                                        setEditContentNotice('');
+                                        const validation = getAuthFileContentValidation(next);
+                                        setEditContentError(validation.error);
+                                    }}
+                                    className="block w-full h-72 p-3 text-sm font-mono text-slate-900 dark:text-white bg-gray-50 dark:bg-background-dark border border-gray-300 dark:border-border-dark rounded-lg focus:ring-primary focus:border-primary"
+                                />
+                                {editContentNotice ? (
+                                    <p className="mt-2 text-xs text-gray-600 dark:text-gray-300">{editContentNotice}</p>
+                                ) : null}
+                                {editContentError ? (
+                                    <p className="mt-2 text-xs text-red-600 dark:text-red-400">{editContentError}</p>
+                                ) : null}
+                            </div>
+                            <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     {t('Auth Group')}
                                 </label>
@@ -3286,11 +3410,14 @@ export function AdminAuthFiles() {
                                     </>
                                 ) : null}
                             </div>
+                            {editSubmitError ? (
+                                <div className="text-sm text-red-600 dark:text-red-400">{editSubmitError}</div>
+                            ) : null}
                         </div>
                         <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-border-dark shrink-0">
                             <button
                                 onClick={handleEditSave}
-                                disabled={editSaving || !editName.trim() || !editKey.trim()}
+                                disabled={editSaving || !editName.trim() || !editKey.trim() || !!editContentError}
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {editSaving ? t('Saving...') : t('Save')}
