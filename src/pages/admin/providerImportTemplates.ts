@@ -69,6 +69,9 @@ export const PROVIDER_IMPORT_TEMPLATES: Record<ProviderImportKey, Record<string,
     },
     'github-copilot': {
         access_token: '<github_copilot_access_token>',
+        editor_device_id: '<editor_device_id_optional>',
+        vscode_abexpcontext: '<vscode_abexpcontext_optional>',
+        vscode_machineid: '<vscode_machineid_optional>',
     },
     kilo: {
         access_token: '<kilo_access_token>',

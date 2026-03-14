@@ -32,6 +32,13 @@ const COMMON_ALLOWED_FIELDS = [
     'session_key',
 ] as const;
 
+const GITHUB_COPILOT_ALLOWED_FIELDS = [
+    ...COMMON_ALLOWED_FIELDS,
+    'editor_device_id',
+    'vscode_abexpcontext',
+    'vscode_machineid',
+] as const;
+
 const PROVIDER_ALLOWED_FIELDS: Record<ProviderImportKey, readonly string[]> = {
     codex: COMMON_ALLOWED_FIELDS,
     anthropic: COMMON_ALLOWED_FIELDS,
@@ -40,7 +47,7 @@ const PROVIDER_ALLOWED_FIELDS: Record<ProviderImportKey, readonly string[]> = {
     qwen: COMMON_ALLOWED_FIELDS,
     kiro: COMMON_ALLOWED_FIELDS,
     kimi: COMMON_ALLOWED_FIELDS,
-    'github-copilot': COMMON_ALLOWED_FIELDS,
+    'github-copilot': GITHUB_COPILOT_ALLOWED_FIELDS,
     kilo: COMMON_ALLOWED_FIELDS,
     'iflow-cookie': COMMON_ALLOWED_FIELDS,
 };

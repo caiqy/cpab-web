@@ -5,7 +5,7 @@ import {
     parseEntriesFromJsonText,
     sanitizeEntryForProvider,
 } from './providerImportSchema';
-import { PROVIDER_IMPORT_OPTIONS } from './providerImportTemplates';
+import { PROVIDER_IMPORT_OPTIONS, PROVIDER_IMPORT_TEMPLATES } from './providerImportTemplates';
 
 describe('providerImportSchema', () => {
     it('builds payload from json object and array', () => {
@@ -73,6 +73,27 @@ describe('providerImportSchema', () => {
         });
         expect(sanitized.access_token).toBe('copilot-access');
         expect(sanitized.email).toBe('copilot@example.com');
+        expect((sanitized as Record<string, unknown>).noisy).toBeUndefined();
+    });
+
+    it('supports github-copilot header metadata fields in template and sanitized payload', () => {
+        const template = PROVIDER_IMPORT_TEMPLATES['github-copilot'];
+        expect(template.editor_device_id).toBeDefined();
+        expect(template.vscode_abexpcontext).toBeDefined();
+        expect(template.vscode_machineid).toBeDefined();
+
+        const sanitized = sanitizeEntryForProvider('github-copilot', {
+            access_token: 'copilot-access',
+            editor_device_id: 'device-123',
+            vscode_abexpcontext: 'abexp-ctx',
+            vscode_machineid: 'machine-456',
+            noisy: 'drop',
+        });
+
+        expect(sanitized.access_token).toBe('copilot-access');
+        expect(sanitized.editor_device_id).toBe('device-123');
+        expect(sanitized.vscode_abexpcontext).toBe('abexp-ctx');
+        expect(sanitized.vscode_machineid).toBe('machine-456');
         expect((sanitized as Record<string, unknown>).noisy).toBeUndefined();
     });
 
